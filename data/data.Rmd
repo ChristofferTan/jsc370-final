@@ -1,0 +1,131 @@
+---
+title: "data"
+output: html_document
+---
+
+# Library
+```{r}
+library(httr)
+library(jsonlite)
+library(lubridate)
+library(dplyr)
+library(purrr)
+library(readr)
+```
+
+
+# Weather API
+```{r}
+api_key <- "e30cfa55cf205833fa814b5c6b29db9b"
+lat <- 43.7
+lon <- -79.4
+base_url <- "https://history.openweathermap.org/data/2.5/history/city"
+
+start_date <- as.Date("2024-04-18")
+end_date   <- as.Date("2025-04-16")
+all_weather <- list()
+
+for (i in seq(start_date, end_date, by = "1 day")) {
+  date_iter <- as.Date(i, origin = "1970-01-01")
+  unix_time <- as.numeric(ymd_hms(paste0(date_iter, " 00:00:00"), tz = "UTC"))
+
+  url <- paste0(
+    base_url, "?lat=", lat, "&lon=", lon,
+    "&type=hour", "&start=", unix_time,
+    "&cnt=24&appid=", api_key
+  )
+
+  res <- GET(url)
+  if (status_code(res) != 200) {
+    message("Failed: ", date_iter)
+    Sys.sleep(1)
+    next
+  }
+
+  parsed <- fromJSON(content(res, "text", encoding = "UTF-8"))
+  if (is.null(parsed$list)) next
+
+  raw_df <- jsonlite::flatten(parsed$list)
+  if (!"rain.1h" %in% names(raw_df)) raw_df$rain.1h <- 0
+  if (!"snow.1h" %in% names(raw_df)) raw_df$snow.1h <- 0
+
+  df <- raw_df |>
+    mutate(
+      datetime_utc        = as.POSIXct(dt, origin = "1970-01-01", tz = "UTC"),
+      unix_time           = dt,
+      date_utc            = as.Date(datetime_utc),
+      hour_utc            = hour(datetime_utc),
+      temp                = main.temp - 273.15,
+      feels_like          = main.feels_like - 273.15,
+      precipitation       = coalesce(rain.1h, 0) + coalesce(snow.1h, 0),
+      weather_main        = sapply(raw_df$weather, function(df) df$main[1]),
+      weather_desc        = sapply(raw_df$weather, function(df) df$description[1])
+    ) |>
+    select(
+      date_utc, hour_utc, unix_time,
+      temp, feels_like,
+      pressure      = main.pressure,
+      humidity      = main.humidity,
+      wind_speed    = wind.speed,
+      cloudiness    = clouds.all,
+      precipitation,
+      weather_main,
+      weather_desc
+    )
+
+  all_weather[[as.character(date_iter)]] <- df
+  Sys.sleep(1)  
+}
+
+weather_year <- bind_rows(all_weather)
+write.csv(weather_year, "weather.csv", row.names = FALSE)
+```
+
+# Bikeshare
+```{r}
+bike_df <- list.files("bikeshare/", pattern = "*.csv", full.names = TRUE) |>
+  map_dfr(read_csv)
+```
+
+```{r}
+bike <- bike_df |>
+  mutate(
+    start_time = mdy_hm(`Start Time`),
+    datetime_hour = floor_date(start_time, unit = "hour"),
+    date = as.Date(datetime_hour),
+    hour = hour(datetime_hour)
+  ) |>
+  group_by(date, hour) |>
+  summarize(
+    total_trips = n()
+  ) |>
+  arrange(date, hour)
+
+write.csv(bike, "bike.csv", row.names = FALSE)
+```
+
+# Merge the dataset
+```{r}
+weather <- read.csv("weather.csv")
+weather <- weather |>
+  mutate(
+    datetime_utc     = as.POSIXct(unix_time, origin = "1970-01-01", tz = "UTC"),
+    datetime_toronto = with_tz(datetime_utc, tzone = "America/Toronto"),
+    date             = as.Date(datetime_toronto),
+    hour             = hour(datetime_toronto)
+  )
+```
+
+```{r}
+df <- inner_join(bike, weather, by = c("date", "hour")) |>
+  select(
+    date, hour, total_trips, temp,
+    feels_like, pressure, humidity, 
+    wind_speed, cloudiness, precipitation,
+    weather_main, weather_desc
+  )
+
+write.csv(df, "merged_data.csv", row.names = FALSE)
+```
+
+
