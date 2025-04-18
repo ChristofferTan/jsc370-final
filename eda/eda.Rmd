@@ -1,0 +1,117 @@
+---
+title: "eda"
+output: html_document
+---
+
+```{r}
+library(ggplot2)
+library(dplyr)
+library(tidyr)
+library(lubridate)
+library(plotly)
+```
+
+```{r}
+df <- read.csv("../data/merged_data.csv")
+```
+
+```{r}
+df <- df |> drop_na()
+df <- df |>
+  mutate(
+    weekday = ifelse(wday(date, label = FALSE, week_start = 1) <= 5, 1, 0)
+  )
+head(df)
+```
+
+```{r}
+ggplot(df, aes(x = total_trips)) + 
+  geom_histogram(bins = 30, fill = "skyblue", color = "white") +
+  labs(title = "Distribution of Bike Trips")
+```
+
+```{r}
+df |>
+  select(temp, feels_like, humidity, wind_speed, cloudiness, precipitation, pressure) |>
+  gather(key = "variable", value = "value") |>
+  ggplot(aes(x = value)) +
+  geom_histogram(bins = 30, fill = "lightgray", color = "black") +
+  facet_wrap(~ variable, scales = "free") +
+  labs(title = "Distribution of Weather Features")
+```
+
+```{r}
+df |>
+  count(weather_main) |>
+  ggplot(aes(x = "", y = n, fill = weather_main)) +
+  geom_col(width = 1) +
+  scale_fill_brewer(palette = "RdYlGn") + 
+  coord_polar(theta = "y") +
+  labs(
+    title = "Weather Condition Breakdown (Main)",
+    fill = "Condition"
+  ) +
+  theme_void()
+
+df %>%
+  count(weather_desc, sort = TRUE) %>%
+  slice_max(n, n = 10) %>%
+  ggplot(aes(x = reorder(weather_desc, n), y = n, fill = weather_desc)) +
+  geom_col(show.legend = FALSE) +
+  scale_fill_brewer(palette = "RdYlGn") +
+  coord_flip() +
+  labs(
+    title = "Top 10 Weather Descriptions",
+    x = "Weather Description",
+    y = "Frequency"
+  ) +
+  theme_minimal()
+
+```
+
+```{r}
+daily_avg <- df %>%
+  group_by(date) %>%
+  summarise(avg_trips = mean(total_trips), .groups = "drop")
+
+ggplot(daily_avg, aes(x = date, y = avg_trips)) +
+  geom_line(color = "steelblue") +
+  geom_point(color = "steelblue", alpha = 0.6) +
+  labs(
+    title = "Average Number of Bike Trips per Day",
+    x = "Date",
+    y = "Average Trips"
+  ) +
+  theme_minimal()
+```
+
+```{r}
+
+
+plot_ly(
+  data = df,
+  x = ~hour,
+  y = ~total_trips,
+  type = "box",
+  boxpoints = "false",
+) |> layout(
+  title = list(text = "<b>Total Trips by Hour of Day</b>", x = 0.5),
+  xaxis = list(title = "Hour of Day", tickmode = "linear"),
+  yaxis = list(title = "Number of Bike Trips"),
+  plot_bgcolor = "#f9f9f9",
+  paper_bgcolor = "#f9f9f9"
+)
+
+```
+
+
+```{r}
+set.seed(123)
+train_idx <- sample(seq_len(nrow(df)), size = 0.8 * nrow(df))
+train <- df[train_idx, ]
+test  <- df[-train_idx, ]
+```
+
+```{r}
+
+```{r}
