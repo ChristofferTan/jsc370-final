@@ -16,7 +16,7 @@ library(readr)
 
 # Weather API
 ```{r}
-api_key <- "e30cfa55cf205833fa814b5c6b29db9b"
+api_key <- ""
 lat <- 43.7
 lon <- -79.4
 base_url <- "https://history.openweathermap.org/data/2.5/history/city"
