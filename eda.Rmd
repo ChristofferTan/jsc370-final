@@ -1,0 +1,110 @@
+---
+title: "Exploratory Data Analysis"
+output:
+  html_document:
+    toc: true
+    toc_float: true
+    theme: flatly
+---
+
+```{r, echo=FALSE, results='hide', message=FALSE, warning=FALSE}
+source("explore.R")
+```
+
+This section explores key patterns and relationships in the dataset, focusing on how different weather conditions and time-of-day factors relate to Bike Share usage in Toronto. Visualizations are used to reveal distributions, trends, and correlations.
+
+## Feature Distributions {.tabset}
+
+### Bike Trips
+
+```{r, echo=FALSE, warning=FALSE, style="display: flex; justify-content: center;"}
+plot_total_trips
+```
+
+### Temperature
+
+```{r, echo=FALSE, warning=FALSE, style="display: flex; justify-content: center;"}
+plot_temp
+```
+
+### Pressure
+
+```{r, echo=FALSE, warning=FALSE, style="display: flex; justify-content: center;"}
+plot_pressure
+```
+
+### Humidity
+
+```{r, echo=FALSE, warning=FALSE, style="display: flex; justify-content: center;"}
+plot_humidity
+```
+
+### Wind Speed
+
+```{r, echo=FALSE, warning=FALSE, style="display: flex; justify-content: center;"}
+plot_wind
+```
+
+### Cloudiness
+
+```{r, echo=FALSE, warning=FALSE, style="display: flex; justify-content: center;"}
+plot_cloud
+```
+
+### Weather Conditions
+```{r, echo=FALSE, warning=FALSE, style="display: flex; justify-content: center;"}
+plot_weather_pie
+```
+
+
+## Correlation and Scatterplots {.tabset}
+
+### Correlation
+
+```{r, echo=FALSE, message=FALSE, warning=FALSE, style="display: flex; justify-content: center;"}
+plot_total_corr
+```
+
+### Temperature
+
+```{r, echo=FALSE, message=FALSE, warning=FALSE, style="display: flex; justify-content: center;"}
+plot_temp_line
+```
+
+### Pressure
+
+```{r, echo=FALSE, message=FALSE, warning=FALSE, style="display: flex; justify-content: center;"}
+plot_pressure_line
+```
+
+### Humidity
+
+```{r, echo=FALSE, message=FALSE, warning=FALSE, style="display: flex; justify-content: center;"}
+plot_humidity_line
+```
+
+### Wind Speed
+
+```{r, echo=FALSE, message=FALSE, warning=FALSE, style="display: flex; justify-content: center;"}
+plot_wind_line
+```
+
+### Cloudiness
+
+```{r, echo=FALSE, message=FALSE, warning=FALSE, style="display: flex; justify-content: center;"}
+plot_cloudiness_line
+```
+
+## Time & Weather Effects {.tabset}
+
+### Time-of-Day
+
+```{r, echo=FALSE, message=FALSE, warning=FALSE, style="display: flex; justify-content: center;"}
+plot_hourly_box
+```
+
+### Weather Condition
+
+```{r, echo=FALSE, message=FALSE, warning=FALSE, style="display: flex; justify-content: center;"}
+plot_weather_box
+```
