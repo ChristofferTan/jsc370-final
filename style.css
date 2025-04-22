@@ -1,0 +1,79 @@
+.navbar {
+  background-color: #161b2c !important; /* Dark navy */
+  border-bottom: 3px solid #00aaff;     /* Bright blue bottom border */
+}
+
+.navbar-brand,
+.navbar-nav > li > a {
+  color: #fff !important;
+  font-weight: bold;
+}
+
+.navbar-nav > li > a:hover {
+  background-color: #0d1120 !important;
+  color: #ffffff !important;
+}
+
+body {
+  font-family: 'Segoe UI', 'Roboto', sans-serif;
+  background-color: #ffffff;
+  color: #1e1e1e;
+  line-height: 1.6;
+  margin: 0;
+  padding: 0;
+}
+
+h1, h2, h3, h4 {
+  color: #1a1f36;
+  font-weight: 600;
+  margin-top: 1.5rem;
+}
+
+a {
+  color: #0d6efd;
+  text-decoration: none;
+}
+a:hover {
+  text-decoration: underline;
+}
+
+.navbar {
+  background-color: #1a1f36 !important;
+  border-bottom: 2px solid #007acc;
+}
+.navbar a {
+  color: #ffffff !important;
+  font-weight: 500;
+}
+
+/* ICON hover styling */
+.navbar .fab {
+  font-size: 18px;
+  margin-left: 1rem;
+  color: white;
+}
+.navbar .fab:hover {
+  color: #ffc107;
+}
+
+/* FOOTER styling */
+.footer {
+  background-color: #f8f9fa;
+  text-align: center;
+  padding: 1rem;
+  font-size: 1rem;
+  color: #333;
+  border-top: 1px solid #ccc;
+  margin-top: 2rem;
+  font-family: "Helvetica Neue", sans-serif;
+}
+
+.footer a {
+  color: #007bff; /* Bootstrap blue */
+  text-decoration: none;
+  font-weight: 500;
+}
+
+.footer a:hover {
+  text-decoration: underline;
+}
