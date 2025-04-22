@@ -294,6 +294,7 @@ legend("topleft",
        bty = "n",
        cex = 0.9)
 ```
+
 ```{r}
 temp_plot_data <- plot(final_gam, select = 1, seWithMean = TRUE, shade = TRUE)
 
@@ -820,6 +821,7 @@ ggplot(xgb_imp, aes(x = Gain, y = Feature, fill = Gain)) +
     panel.grid.minor = element_blank()
   )
 ```
+
 ```{r}
 xgb_imp <- xgb.importance(model = final_xgb) %>%
   arrange(Gain) %>%
