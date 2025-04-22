@@ -5,7 +5,7 @@ This project explores how weather conditions influence hourly bike share usage i
 The project was completed as part of the **JSC370: Introduction to Data Science** course at the University of Toronto (Winter 2025).
 
 🔗 **Project Website**  
-👉 [https://christoffertan.github.io/jsc370-final](https://christoffertan.github.io/toronto-bikeshare-analysis/)
+👉 [https://christoffertan.github.io/toronto-bikeshare-analysis/](https://christoffertan.github.io/toronto-bikeshare-analysis/)
 
 📄 **Download Report**  
 👉 [Full PDF Report](docs/report.pdf)
