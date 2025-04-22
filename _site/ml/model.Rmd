@@ -1,0 +1,1144 @@
+---
+title: "model"
+output: html_document
+---
+
+# Library
+```{r}
+library(tidyverse)
+library(caret)
+library(car)
+library(MASS)
+library(broom)
+library(yardstick)
+library(mgcv)
+library(randomForest)
+library(rsample)
+library(plotly)
+library(tibble)
+library(xgboost)
+library(dplyr)
+library(recipes)
+library(Matrix)
+library(scales)
+```
+# Linear Regression
+## Data Cleaning and Preparation
+```{r}
+df <- read.csv("../data/merged_data.csv")
+```
+
+```{r}
+df <- df |>
+  distinct() |>
+  drop_na() |> 
+  mutate(
+    date = as.Date(date),
+    hour = as.factor(hour),
+    weather_main = as.factor(weather_main),
+    weather_desc = as.factor(weather_desc)
+  )
+```
+
+
+## Train-Test Split
+```{r}
+set.seed(123)
+split_index <- createDataPartition(df$total_trips, p = 0.8, list = FALSE)
+train_df <- df[split_index, ]
+test_df  <- df[-split_index, ]
+```
+
+## Initial Linear Model
+```{r}
+lg_train <- train_df
+lg_test <- test_df
+
+features <- c("temp", "pressure", "humidity", "wind_speed", 
+              "cloudiness", "weather_main", "hour")
+
+formula <- as.formula(paste("total_trips ~", paste(features, collapse = " + ")))
+init_model <- lm(formula, data = lg_train)
+summary(init_model)
+```
+## Assess Multicollinearity
+```{r}
+vif(init_model)
+```
+## Stepwise Model Selection
+```{r}
+step_model <- stepAIC(model1, direction = "both", trace = FALSE)
+summary(step_model)
+```
+
+## Step Model: Evaluation
+```{r}
+lg_train$predicted <- predict(step_model, newdata = lg_train)
+lg_test$predicted  <- predict(step_model, newdata = lg_test)
+
+metrics_train <- metrics(lg_train, truth = total_trips, estimate = predicted)
+metrics_test  <- metrics(lg_test,  truth = total_trips, estimate = predicted)
+```
+
+## Assumptions Chekced
+
+```{r}
+plot(step_model$fitted.values, resid(step_model),
+     xlab = "Fitted Values", ylab = "Residuals", main = "Residuals vs Fitted")
+abline(h = 0, col = "red")
+
+# QQ Plot
+qqnorm(resid(step_model))
+qqline(resid(step_model), col = "red")
+```
+```{r}
+summary(lg_train)
+```
+
+## Box-Cox Transformations
+
+```{r}
+lg_train <- lg_train %>% 
+  mutate(across(c(wind_speed, cloudiness, precipitation), ~ . + 1e-3))
+
+# Power transform
+num_features <- c("total_trips", "pressure", "humidity", 
+                  "wind_speed", "cloudiness")
+p <- powerTransform(lg_train[, num_features])
+summary(p)
+```
+## Apply transformations
+```{r}
+lg_train <- lg_train %>%
+  mutate(
+    total_trips_bc    = total_trips^0.5,
+    humidity_bc       = humidity^2,
+    wind_speed_bc     = wind_speed^0.25,
+    cloudiness_bc     = cloudiness^0.5
+  )
+
+lg_test <- lg_test %>%
+  mutate(
+    total_trips_bc    = total_trips^0.5,
+    humidity_bc       = humidity^2,
+    wind_speed_bc     = wind_speed^0.25,
+    cloudiness_bc     = cloudiness^0.5
+  )
+```
+
+## Final Linear Model (transformed)
+```{r}
+final_lm <- lm(total_trips_bc ~ temp + pressure + humidity_bc + wind_speed_bc +
+                    cloudiness_bc + hour + weather_main,
+                  data = lg_train)
+summary(final_lm)
+```
+## Model Evaluation (Transformed)
+```{r}
+lg_train$pred_bc <- predict(final_lm, newdata = lg_train)
+lg_test$pred_bc  <- predict(final_lm, newdata = lg_test)
+
+lg_train$predicted <- (lg_train$pred_bc)^2
+lg_test$predicted  <- (lg_test$pred_bc)^2
+
+# Metrics
+metrics_train_lm <- metrics(lg_train, truth = total_trips, estimate = predicted)
+metrics_test_lm  <- metrics(lg_test,  truth = total_trips, estimate = predicted)
+
+metrics_train_lm
+metrics_test_lm
+```
+
+## Assumptions Checked
+```{r}
+plot(final_model$fitted.values, resid(final_lm),
+     xlab = "Fitted Values", ylab = "Residuals", main = "Residuals vs Fitted")
+abline(h = 0, col = "red")
+
+# QQ Plot
+qqnorm(resid(final_model))
+qqline(resid(final_model), col = "red")
+```
+
+# Generalized Linear Model (Poisson)
+## Initial Poisson Model
+```{r}
+glm_train <- train_df
+glm_test <- test_df
+
+init_model <- glm(
+  total_trips ~ temp + humidity + wind_speed + hour + weather_main,
+  data = glm_train,
+  family = poisson(link = "log")
+)
+
+summary(init_model)
+```
+## Check for overdispersion
+```{r}
+dispersion <- sum(residuals(init_model, type = "pearson")^2) / init_model$df.residual
+print(paste("Dispersion:", round(dispersion, 3)))
+```
+
+## Fit Negative Binomial Model
+```{r}
+nb_model <- MASS::glm.nb(
+  total_trips ~ temp + humidity + wind_speed + hour + weather_main,
+  data = glm_train
+)
+
+summary(nb_model)
+```
+## Refine with Stepwsise Selection
+```{r}
+final_glm <- MASS::stepAIC(nb_model, direction = "both", trace = FALSE)
+summary(final_glm)
+```
+## Model Predictions and Evaluation
+```{r}
+glm_train$predicted <- predict(final_glm, type = "response")
+glm_test$predicted  <- predict(final_glm, newdata = glm_test, type = "response")
+
+
+metrics_train_glm <- glm_train |>
+  yardstick::metrics(truth = total_trips, estimate = predicted)
+
+metrics_test_glm <- glm_test |>
+  yardstick::metrics(truth = total_trips, estimate = predicted)
+
+metrics_train_glm
+metrics_test_glm
+```
+
+# Generalized Additive Model
+## Full GAM with all smooth terms
+```{r}
+gam_train <- train_df
+gam_test  <- test_df
+
+gam_model <- gam(
+  total_trips ~ s(temp) + s(humidity) + s(wind_speed) +
+    hour + weather_main,
+  data = gam_train,
+  family = nb(link = "log")
+)
+
+summary(gam_model)      # Check significance
+gam.check(gam_model)    # Residual diagnostics + k-index
+plot(gam_model, pages = 1, residuals = TRUE, shade = TRUE) 
+```
+## Remove s(humidity) because it's not significant
+```{r}
+final_gam <- gam(
+  total_trips ~ s(temp) + s(wind_speed) +
+    hour + weather_main,
+  data = gam_train,
+  family = nb(link = "log")
+)
+
+anova(final_gam, gam_model, test = "Chisq")
+summary(final_gam)
+```
+
+```{r}
+gam_train$predicted <- predict(final_gam, type = "response")
+gam_test$predicted  <- predict(final_gam, newdata = gam_test, type = "response")
+
+# Accuracy Metrics
+metrics_train_gam <- metrics(gam_train, truth = total_trips, estimate = predicted)
+metrics_test_gam  <- metrics(gam_test,  truth = total_trips, estimate = predicted)
+
+metrics_train_gam
+metrics_test_gam
+```
+
+## Plot final GAM smooth terms
+```{r}
+plot(final_gam, pages = 1, shade = TRUE, seWithMean = TRUE)
+```
+
+```{r}
+plot(final_gam, 
+     select = which(sapply(final_gam$smooth, function(s) s$term) == "temp"),
+     shade = TRUE,
+     seWithMean = TRUE,
+     col = "#0072B2",                      # Blue line
+     shade.col = adjustcolor("#0072B2", 0.3),  # Light blue CI
+     main = "Smooth Effect of Temperature",
+     xlab = "Temperature (°C)",
+     ylab = "Smooth Effect")
+
+# Add legend
+legend("topleft",
+       legend = c("Smooth effect", "Confidence interval"),
+       col = c("#0072B2", adjustcolor("#0072B2", 0.3)),
+       lwd = c(2, 8),
+       bty = "n",
+       cex = 0.9)
+
+# Plot s(wind_speed)
+plot(final_gam, 
+     select = which(sapply(final_gam$smooth, function(s) s$term) == "wind_speed"),
+     shade = TRUE,
+     seWithMean = TRUE,
+     col = "#D55E00",                      # Orange line
+     shade.col = adjustcolor("#D55E00", 0.3),  # Light orange CI
+     main = "Smooth Effect of Wind Speed",
+     xlab = "Wind Speed (m/s)",
+     ylab = "Smooth Effect")
+
+legend("topleft",
+       legend = c("Smooth effect", "Confidence interval"),
+       col = c("#D55E00", adjustcolor("#D55E00", 0.3)),
+       lwd = c(2, 8),
+       bty = "n",
+       cex = 0.9)
+```
+
+```{r}
+temp_plot_data <- plot(final_gam, select = 1, seWithMean = TRUE, shade = TRUE)
+
+# Convert the extracted plot data to a data frame
+df_temp <- data.frame(
+  temp = temp_plot_data[[1]]$x,
+  fit = temp_plot_data[[1]]$fit,
+  se = temp_plot_data[[1]]$se
+)
+
+# Plotly version of the smooth effect
+plot_ly(df_temp, 
+        x = ~temp,
+        y = ~fit, 
+        type = 'scatter', 
+        mode = 'lines',
+        line = list(color = "#0072B2"), name = "Smooth effect",
+        hovertemplate = paste(
+          "Temp.: %{x:.1f}°C<br>",
+          "Effect: %{y:.2f}<extra></extra>"
+        )) |>
+  add_ribbons(ymin = ~fit - 2*se, ymax = ~fit + 2*se,
+              line = list(color = "transparent"),
+              fillcolor = "rgba(0,114,178,0.3)",
+              name = "95% CI") |>
+  layout(
+  title = list(
+    text = "Smooth Effect of Temperature (GAM)",
+    x = 0.5,
+    font = list(size = 18, family = "Arial")
+  ),
+  xaxis = list(
+    title = "Temperature (°C)",
+    titlefont = list(size = 14),
+    tickfont = list(size = 12),
+    showgrid = TRUE, 
+    gridcolor = "lightgray"
+  ),
+  yaxis = list(
+    title = "Smooth Effect",
+    titlefont = list(size = 14),
+    tickfont = list(size = 12),
+    showgrid = TRUE, 
+    gridcolor = "lightgray"
+  ),
+  legend = list(x = 0.02, y = 0.98),
+  margin = list(l = 80, r = 40, t = 80, b = 60),
+  paper_bgcolor = "#ffffff",
+  plot_bgcolor = "#ffffff"
+)
+```
+
+```{r}
+wind_plot_data <- plot(final_gam, select = which(sapply(final_gam$smooth, function(s) s$term) == "wind_speed"), 
+                       seWithMean = TRUE, shade = TRUE)
+
+# Convert to data frame
+df_wind <- data.frame(
+  wind_speed = wind_plot_data[[1]]$x,
+  fit = wind_plot_data[[1]]$fit,
+  se = wind_plot_data[[1]]$se
+)
+
+# Plotly version
+plot_ly(df_wind, 
+        x = ~wind_speed,
+        y = ~fit, 
+        type = 'scatter', 
+        mode = 'lines',
+        line = list(color = "#D55E00"), 
+        name = "Smooth effect",
+        hovertemplate = paste(
+          "Wind Speed: %{x:.1f} m/s<br>",
+          "Effect: %{y:.2f}<extra></extra>"
+        )) |>
+  add_ribbons(ymin = ~fit - 2*se, ymax = ~fit + 2*se,
+              line = list(color = "transparent"),
+              fillcolor = "rgba(213,94,0,0.3)",  # Light orange fill
+              name = "95% CI",
+              hoverlabel = list(
+                font = list(color = "#D55E00", size = 13)
+              )) |>
+  layout(
+    title = list(
+      text = "Smooth Effect of Wind Speed (GAM)",
+      x = 0.5,
+      font = list(size = 18, family = "Arial")
+    ),
+    xaxis = list(
+      title = "Wind Speed (m/s)",
+      titlefont = list(size = 14),
+      tickfont = list(size = 12),
+      showgrid = TRUE, 
+      gridcolor = "lightgray"
+    ),
+    yaxis = list(
+      title = "Smooth Effect",
+      titlefont = list(size = 14),
+      tickfont = list(size = 12),
+      showgrid = TRUE, 
+      gridcolor = "lightgray"
+    ),
+    legend = list(x = 0.02, y = 0.98),
+    margin = list(l = 80, r = 40, t = 80, b = 60),
+    paper_bgcolor = "#ffffff",
+    plot_bgcolor = "#ffffff"
+  )
+```
+
+## Random Forest
+### Prepare data
+```{r}
+rf_train <- train_df |> 
+  mutate(hour = as.factor(hour),
+         weather_main = as.factor(weather_main)) |> 
+  drop_na()
+rf_test <- test_df |>
+  mutate(hour = as.factor(hour),
+         weather_main = as.factor(weather_main)) |>
+  drop_na()
+```
+
+### Default Random Forest
+```{r}
+rf_formula <- total_trips ~ temp + pressure + humidity + wind_speed +
+                             cloudiness + hour + weather_main
+
+default_rf <- randomForest(formula = rf_formula, data = rf_train, importance = TRUE)
+
+# Predict on train and test
+rf_train$predicted <- predict(default_rf, newdata = rf_train)
+rf_test$predicted  <- predict(default_rf, newdata = rf_test)
+
+# Evaluate metrics
+metrics_train_rf_default <- metrics(rf_train, truth = total_trips, estimate = predicted)
+metrics_test_rf_default  <- metrics(rf_test,  truth = total_trips, estimate = predicted)
+
+print(metrics_train_rf_default)
+print(metrics_test_rf_default)
+```
+
+```{r}
+imp_raw <- importance(default_rf)
+importance_df <- data.frame(
+  Variable = rownames(imp_raw),
+  Importance = imp_raw[, "%IncMSE"]
+)
+ggplot(importance_df, aes(x = Importance, y = reorder(Variable, Importance), fill = Importance)) +
+  geom_col(width = 0.7, color = "black", linewidth = 0.1) +
+  scale_fill_gradient(low = "#FFD92F", high = "#D73027", guide = "none") +  # Red-Yellow
+  labs(
+    title = "Feature Importance for Random Forest",
+    x = "Importance (%IncMSE)",
+    y = "Feature"
+  ) +
+  theme_minimal(base_size = 13) +
+  theme(
+    plot.title = element_text(size = 14, face = "bold", hjust = 0.5),
+    axis.title.x = element_text(size = 12),
+    axis.text.y = element_text(size = 11),
+    panel.grid.minor = element_blank()
+  )
+```
+
+### Define hyperparameter grid and 5-fold cross-validation folds
+```{r}
+mtry_vals     <- c(2, 4, 6, 8)
+ntree_vals    <- c(100, 250, 500)
+nodesize_vals <- c(1, 5, 10)
+
+folds <- vfold_cv(rf_train, v = 5)
+
+rf_formula <- total_trips ~ temp + pressure + humidity + wind_speed +
+                             cloudiness + hour + weather_main
+```
+
+### Cross-validation to tune hyperparameters
+```{r}
+results <- data.frame()
+
+for (mtry in mtry_vals) {
+  for (ntree in ntree_vals) {
+    for (nodesize in nodesize_vals) {
+      
+      fold_metrics <- c()
+      
+      for (fold in folds$splits) {
+        train_fold <- analysis(fold)
+        val_fold <- assessment(fold)
+        
+        model <- randomForest(
+          rf_formula,
+          data = train_fold,
+          mtry = mtry,
+          ntree = ntree,
+          nodesize = nodesize
+        )
+        
+        preds <- predict(model, newdata = val_fold)
+        
+        rmse_val <- yardstick::rmse_vec(truth = val_fold$total_trips, estimate = preds)
+        fold_metrics <- c(fold_metrics, rmse_val)
+      }
+      
+      avg_rmse <- mean(fold_metrics)
+      
+      results <- rbind(results, data.frame(
+        mtry = mtry,
+        ntree = ntree,
+        nodesize = nodesize,
+        avg_rmse = avg_rmse
+      ))
+      
+      cat(glue::glue("mtry={mtry}, ntree={ntree}, nodesize={nodesize} → avg RMSE = {round(avg_rmse, 2)}\n"))
+    }
+  }
+}
+```
+
+### Select best parameters
+```{r}
+best_params <- results[which.min(results$avg_rmse), ]
+print(best_params)
+```
+
+### Train final model
+```{r}
+final_rf <- randomForest(
+  rf_formula,
+  data = rf_train,
+  mtry = best_params$mtry,
+  ntree = best_params$ntree,
+  nodesize = best_params$nodesize,
+  importance=TRUE
+)
+```
+
+### Predict and evaluate
+```{r}
+rf_train$predicted <- predict(final_rf, newdata = rf_train)
+rf_test$predicted  <- predict(final_rf, newdata = rf_test)
+
+# Compute performance metrics
+metrics_train_rf <- yardstick::metrics(rf_train, truth = total_trips, estimate = predicted)
+metrics_test_rf  <- yardstick::metrics(rf_test,  truth = total_trips, estimate = predicted)
+
+metrics_train_rf
+metrics_test_rf 
+```
+
+```{r}
+imp_raw <- importance(final_rf)
+importance_df <- data.frame(
+  Variable = rownames(imp_raw),
+  Importance = imp_raw[, "%IncMSE"]
+)
+ggplot(importance_df, aes(x = Importance, y = reorder(Variable, Importance), fill = Importance)) +
+  geom_col(width = 0.7, color = "black", linewidth = 0.1) +
+  geom_text(
+    aes(label = paste0(round(Importance, 1), "%")),
+    hjust = -0.1,
+    size = 3.5,
+    color = "black"
+  ) +
+  scale_fill_gradientn(
+    colors = c("#FFFFB2", "#FECC5C", "#FD8D3C", "#F03B20", "#BD0026"),
+    guide = "none"
+  ) +
+  labs(
+    title = "Feature Importance for Random Forest (Cross-Validated)",
+    subtitle = paste0(
+      "Model tuned via cross-validation (mtry = ", best_params$mtry,
+      ", ntree = ", best_params$ntree,
+      ", nodesize = ", best_params$nodesize, ")"
+    ),
+    x = "Importance (%IncMSE)",
+    y = "Feature"
+  ) +
+  xlim(0, max(importance_df$Importance) * 1.1) +  # Add space for text labels
+  theme_minimal(base_size = 13) +
+  theme(
+    plot.title = element_text(size = 14, face = "bold", hjust = 0.5),
+    plot.subtitle = element_text(size = 11, hjust = 0.5),
+    axis.title.x = element_text(size = 12),
+    axis.text.y = element_text(size = 11),
+    panel.grid.minor = element_blank()
+  )
+```
+
+```{r}
+importance_df <- importance_df %>%
+  mutate(Label = paste0(round(Importance, 1), "%"))
+
+# Create the interactive Plotly plot
+plot_ly(
+  data = importance_df,
+  x = ~Importance,
+  y = ~reorder(Variable, Importance),
+  type = "bar",
+  orientation = "h",
+  text = ~Label,
+  textposition = "outside",
+  marker = list(
+    color = ~Importance,
+    colorscale = list(
+      c(0, "#FFFFB2"), c(0.25, "#FECC5C"), c(0.5, "#FD8D3C"),
+      c(0.75, "#F03B20"), c(1, "#BD0026")
+    ),
+    line = list(color = "black", width = 0.5)
+  ),
+  hovertemplate = paste(
+    "<b>%{y}</b><br>",
+    "Importance: %{x:.1f}%<extra></extra>"
+  )
+) %>%
+  layout(
+    title = list(
+      text = paste0("Feature Importance for Random Forest (Cross-Validated)<br>",
+                    "<sup>mtry = ", best_params$mtry,
+                    ", ntree = ", best_params$ntree,
+                    ", nodesize = ", best_params$nodesize, "</sup>"),
+      x = 0.5
+    ),
+    xaxis = list(title = "Importance (%IncMSE)"),
+    yaxis = list(title = ""),
+    margin = list(l = 100),
+    showlegend = FALSE
+  )
+```
+
+## XGBoost
+### Prepare data for XGBoost (must be numeric matrix)
+```{r}
+xgb_train <- train_df |>
+  mutate(hour = as.numeric(hour),
+         weather_main = as.numeric(as.factor(weather_main))) |>
+  drop_na()
+
+xgb_test <- test_df |>
+  mutate(hour = as.numeric(hour),
+         weather_main = as.numeric(as.factor(weather_main))) |>
+  drop_na()
+```
+
+### Separate features and target
+```{r}
+train_matrix <- model.matrix(total_trips ~ . - weather_desc - precipitation - feels_like - date - 1, data = xgb_train)
+train_label  <- xgb_train$total_trips
+
+test_matrix  <- model.matrix(total_trips ~ . - weather_desc - precipitation - feels_like - date - 1, data = xgb_test)
+test_label  <- xgb_test$total_trips
+```
+
+### Convert to DMatrix format
+```{r}
+dtrain <- xgb.DMatrix(data = train_matrix, label = train_label)
+dtest  <- xgb.DMatrix(data = test_matrix, label = test_label)
+
+xgb_model <- xgboost(
+  data = dtrain,
+  objective = "reg:squarederror",
+  nrounds = 100,
+  verbose = 0
+)
+```
+
+### Predictions and Evaluations
+```{r}
+pred_train <- predict(xgb_model, dtrain)
+pred_test  <- predict(xgb_model, dtest)
+
+metrics_train_xgb_default <- yardstick::metrics(data.frame(truth = train_label, estimate = pred_train),
+                                     truth = truth, estimate = estimate)
+metrics_test_xgb_default <- yardstick::metrics(data.frame(truth = test_label, estimate = pred_test),
+                                    truth = truth, estimate = estimate)
+
+print(metrics_train_xgb_default)
+print(metrics_test_xgb_default)
+```
+### Variable importance
+```{r}
+xgb_imp <- xgb.importance(model = xgb_model)
+xgb_imp <- xgb_imp %>%
+  arrange(Gain) %>%
+  mutate(Feature = factor(Feature, levels = Feature))
+
+ggplot(xgb_imp, aes(x = Gain, y = reorder(Feature, Gain), fill = Gain)) +
+  geom_col(width = 0.7, color = "black", linewidth = 0.1) +
+  scale_fill_gradientn(
+    colors = c("#e0f3db", "#a8ddb5", "#43a2ca", "#006d2c"),  # light to deep green
+    guide = "none"
+  ) +
+  labs(
+    title = "Feature Importance for XGBoost",
+    x = "Importance (Gain)",
+    y = "Feature"
+  ) +
+  theme_minimal(base_size = 13) +
+  theme(
+    plot.title = element_text(size = 14, face = "bold", hjust = 0.5),
+    axis.title.x = element_text(size = 12),
+    axis.text.y = element_text(size = 11),
+    panel.grid.minor = element_blank()
+  )
+```
+
+
+### Define grid of hyperparameters
+```{r}
+param_grid <- expand.grid(
+  eta = c(0.05, 0.1),               # Learning rate
+  max_depth = c(4, 6),              # Max tree depth
+  min_child_weight = c(1, 3),       # Minimum sum of instance weight needed in a child
+  subsample = c(0.8, 1),            # Subsample ratio of the training set
+  colsample_bytree = c(0.8, 1)      # Subsample ratio of columns
+)
+```
+
+### Cross-validation to find the best hyperparameters
+```{r}
+results <- list()
+
+for (i in 1:nrow(param_grid)) {
+  params <- list(
+    objective = "reg:squarederror",
+    eval_metric = "rmse",
+    eta = param_grid$eta[i],
+    max_depth = param_grid$max_depth[i],
+    min_child_weight = param_grid$min_child_weight[i],
+    subsample = param_grid$subsample[i],
+    colsample_bytree = param_grid$colsample_bytree[i]
+  )
+
+  cv <- xgb.cv(
+    params = params,
+    data = dtrain,
+    nrounds = 100,
+    nfold = 5,
+    early_stopping_rounds = 10,
+    verbose = 0
+  )
+
+  results[[i]] <- list(
+    params = params,
+    best_iteration = cv$best_iteration,
+    best_rmse = cv$evaluation_log$test_rmse_mean[cv$best_iteration]
+  )
+
+  cat(glue::glue("Model {i}: RMSE = {round(results[[i]]$best_rmse, 2)} (nrounds = {results[[i]]$best_iteration})\n"))
+}
+```
+
+
+### Train the best model
+```{r}
+best_model <- results[[which.min(sapply(results, function(x) x$best_rmse))]]
+print(best_model)
+
+final_xgb <- xgboost(
+  params = best_model$params,
+  data = dtrain,
+  nrounds = best_model$best_iteration,
+  verbose = 0
+)
+```
+
+### Evaluate the metrics and variable importance
+```{r}
+pred_train <- predict(final_xgb, newdata = dtrain)
+pred_test  <- predict(final_xgb, newdata = dtest)
+
+metrics_train_xgb <- yardstick::metrics(data.frame(truth = train_label, estimate = pred_train),
+                                     truth = truth, estimate = estimate)
+metrics_test_xgb  <- yardstick::metrics(data.frame(truth = test_label, estimate = pred_test),
+                                    truth = truth, estimate = estimate)
+
+print(metrics_train_xgb)
+print(metrics_test_xgb)
+```
+
+```{r}
+xgb_imp <- xgb.importance(model = final_xgb) %>%
+  arrange(Gain) %>%
+  mutate(
+    Feature = factor(Feature, levels = Feature),
+    Label = paste0(round(Gain * 100, 1), "%")  # Convert gain to %
+  )
+
+labs(
+    title = "Feature Importance for Random Forest (Cross-Validated)",
+    subtitle = paste0(
+      "Model tuned via cross-validation (mtry = ", best_params$mtry,
+      ", ntree = ", best_params$ntree,
+      ", nodesize = ", best_params$nodesize, ")"
+    ),
+    x = "Importance (%IncMSE)",
+    y = "Feature"
+  )
+
+# Plot with green gradient and value labels
+ggplot(xgb_imp, aes(x = Gain, y = Feature, fill = Gain)) +
+  geom_col(width = 0.7, color = "black", linewidth = 0.1) +
+  geom_text(aes(label = Label), hjust = -0.1, size = 3.5, color = "black") +
+  scale_fill_gradientn(
+    colors = c("#e0f3db", "#a8ddb5", "#43a2ca", "#006d2c"),  # soft to deep green
+    guide = "none"
+  ) +
+  labs(
+    title = "Feature Importance for XGBoost (Cross-Validated)",
+    subtitle = paste0(
+      "Model tuned via cross-validation\n",
+      "eta = 0.05, max_depth = 6, min_child_weight = 3, subsample = 0.8, colsample_bytree = 1"
+    ),
+    x = "Importance (Gain)",
+    y = "Feature"
+  ) +
+  xlim(0, max(xgb_imp$Gain) * 1.1) +  # leave space for labels
+  theme_minimal(base_size = 13) +
+  theme(
+    plot.title = element_text(size = 14, face = "bold", hjust = 0.5),
+    plot.subtitle = element_text(size = 11, hjust = 0.5),
+    axis.title.x = element_text(size = 12),
+    axis.text.y = element_text(size = 11),
+    panel.grid.minor = element_blank()
+  )
+```
+
+```{r}
+xgb_imp <- xgb.importance(model = final_xgb) %>%
+  arrange(Gain) %>%
+  mutate(
+    Feature = factor(Feature, levels = Feature),
+    Label = paste0(round(Gain * 100, 1), "%")
+  )
+
+# Plot
+plot_ly(
+  data = xgb_imp,
+  x = ~Gain,
+  y = ~reorder(Feature, Gain),
+  type = "bar",
+  orientation = "h",
+  text = ~Label,
+  textposition = "outside",
+  marker = list(
+    color = ~Gain,
+    colorscale = list(
+      c(0, "#e0f3db"),
+      c(0.33, "#a8ddb5"),
+      c(0.66, "#43a2ca"),
+      c(1, "#006d2c")
+    ),
+    line = list(color = "black", width = 0.5)
+  ),
+  hovertemplate = paste(
+    "<b>%{y}</b><br>",
+    "Gain: %{x:.4f}<extra></extra>"
+  )
+) %>%
+layout(
+  title = list(
+    text = "Feature Importance for XGBoost (Cross-Validated)",
+    x = 0.5,
+    y = 0.9
+  ),
+  annotations = list(
+    list(
+      text = "eta = 0.05, max_depth = 6, min_child_weight = 3, subsample = 0.8, colsample_bytree = 1",
+      x = 0.5,
+      y = 1.08,
+      xref = "paper",
+      yref = "paper",
+      showarrow = FALSE,
+      font = list(size = 12),
+      align = "center"
+    )
+  ),
+  margin = list(t = 100),  # make room for annotation
+  xaxis = list(title = "Importance (Gain)"),
+  yaxis = list(title = ""),
+  showlegend = FALSE
+)
+
+```
+
+```{r}
+get_metric_value <- function(metrics_tbl, metric_name) {
+  metrics_tbl %>%
+    dplyr::filter(.metric == metric_name) %>%
+    dplyr::pull(.estimate)
+}
+
+```
+# Summary
+```{r}
+results_table <- tibble::tibble(
+  Model = c(
+    "Linear Regression",
+    "GLM (Poisson)",
+    "GAM (Negative Binomial)",
+    "Random Forest (Default)",
+    "Random Forest (Tuned)",
+    "XGBoost (Default)",
+    "XGBoost (Tuned)"
+  ),
+  `Train R²` = c(
+    get_metric_value(metrics_train_lm, "rsq"),
+    get_metric_value(metrics_train_glm, "rsq"),
+    get_metric_value(metrics_train_gam, "rsq"),
+    get_metric_value(metrics_train_rf_default, "rsq"),
+    get_metric_value(metrics_train_rf, "rsq"),
+    get_metric_value(metrics_train_xgb_default, "rsq"),
+    get_metric_value(metrics_train_xgb, "rsq")
+  ),
+  `Test R²` = c(
+    get_metric_value(metrics_test_lm, "rsq"),
+    get_metric_value(metrics_test_glm, "rsq"),
+    get_metric_value(metrics_test_gam, "rsq"),
+    get_metric_value(metrics_test_rf_default, "rsq"),
+    get_metric_value(metrics_test_rf, "rsq"),
+    get_metric_value(metrics_test_xgb_default, "rsq"),
+    get_metric_value(metrics_test_xgb, "rsq")
+  ),
+  `Train RMSE` = c(
+    get_metric_value(metrics_train_lm, "rmse"),
+    get_metric_value(metrics_train_glm, "rmse"),
+    get_metric_value(metrics_train_gam, "rmse"),
+    get_metric_value(metrics_train_rf_default, "rmse"),
+    get_metric_value(metrics_train_rf, "rmse"),
+    get_metric_value(metrics_train_xgb_default, "rmse"),
+    get_metric_value(metrics_train_xgb, "rmse")
+  ),
+  `Test RMSE` = c(
+    get_metric_value(metrics_test_lm, "rmse"),
+    get_metric_value(metrics_test_glm, "rmse"),
+    get_metric_value(metrics_test_gam, "rmse"),
+    get_metric_value(metrics_test_rf_default, "rmse"),
+    get_metric_value(metrics_test_rf, "rmse"),
+    get_metric_value(metrics_test_xgb_default, "rmse"),
+    get_metric_value(metrics_test_xgb, "rmse")
+  ),
+  `Train MAE` = c(
+    get_metric_value(metrics_train_lm, "mae"),
+    get_metric_value(metrics_train_glm, "mae"),
+    get_metric_value(metrics_train_gam, "mae"),
+    get_metric_value(metrics_train_rf_default, "mae"),
+    get_metric_value(metrics_train_rf, "mae"),
+    get_metric_value(metrics_train_xgb_default, "mae"),
+    get_metric_value(metrics_train_xgb, "mae")
+  ),
+  `Test MAE` = c(
+    get_metric_value(metrics_test_lm, "mae"),
+    get_metric_value(metrics_test_glm, "mae"),
+    get_metric_value(metrics_test_gam, "mae"),
+    get_metric_value(metrics_test_rf_default, "mae"),
+    get_metric_value(metrics_test_rf, "mae"),
+    get_metric_value(metrics_test_xgb_default, "mae"),
+    get_metric_value(metrics_test_xgb, "mae")
+  )
+)
+
+# Display the table
+knitr::kable(results_table, digits = 3, caption = "Model Performance Summary (Train & Test)")
+```
+
+```{r}
+preds <- predict(final_xgb, newdata = dtest)
+
+# Create a dataframe for plotting
+plot_df <- data.frame(
+  Actual = test_label,
+  Predicted = preds
+)
+
+# Plot using plotly
+fig <- plot_ly(
+  data = plot_df,
+  x = ~Actual,
+  y = ~Predicted,
+  type = 'scatter',
+  mode = 'markers',
+  marker = list(color = '#0072B2', size = 6, opacity = 0.6)
+) %>%
+  layout(
+    title = "Predicted vs Actual Bike Trip Counts",
+    xaxis = list(title = "Actual Bike Trips"),
+    yaxis = list(title = "Predicted Bike Trips"),
+    shapes = list(
+      list(
+        type = "line",
+        x0 = min(plot_df$Actual),
+        y0 = min(plot_df$Actual),
+        x1 = max(plot_df$Actual),
+        y1 = max(plot_df$Actual),
+        line = list(dash = 'dash', color = 'gray')
+      )
+    )
+  )
+
+fig
+```
+
+```{r}
+rsq <- cor(pred_vs_actual$actual, pred_vs_actual$predicted)^2
+
+ggplot(pred_vs_actual, aes(x = actual, y = predicted)) +
+  geom_hex(bins = 50) +
+  scale_fill_viridis_c(option = "C") +
+  geom_abline(slope = 1, intercept = 0, linetype = "dashed", color = "gray20") +
+  labs(
+    title = "Predicted vs. Actual Bike Trip Counts",
+    subtitle = paste0("R² = ", round(rsq, 3)),
+    x = "Actual Bike Trips",
+    y = "Predicted Bike Trips",
+    fill = "Density"
+  ) +
+  theme_minimal(base_size = 14) +
+  theme(
+    plot.title = element_text(face = "bold", hjust = 0.5),
+    plot.subtitle = element_text(hjust = 0.5)
+  )
+```
+
+
+
+```{r}
+pred_vs_actual <- pred_vs_actual %>%
+  mutate(residual = abs(predicted - actual))
+
+axis_min <- min(pred_vs_actual$actual, pred_vs_actual$predicted)
+axis_max <- max(pred_vs_actual$actual, pred_vs_actual$predicted)
+
+plot_ly() %>%
+  add_trace(
+    data = pred_vs_actual,
+    x = ~actual,
+    y = ~predicted,
+    type = "scatter",
+    mode = "markers",
+    marker = list(
+      color = ~residual,
+      colorscale = "YlOrRd",  # yellow = large error, red = smaller
+      colorbar = list(title = "Absolute Error"),
+      opacity = 0.6,
+      size = 6
+    ),
+    text = ~paste("Actual:", actual,
+                  "<br>Predicted:", round(predicted, 1),
+                  "<br>Absolute Error:", round(residual, 1)),
+    hoverinfo = "text",
+    name = "Predictions"
+  ) %>%
+  add_trace(
+    x = c(axis_min, axis_max),
+    y = c(axis_min, axis_max),
+    type = "scatter",
+    mode = "lines",
+    line = list(dash = "dash", color = "gray"),
+    showlegend = FALSE,
+    hoverinfo = "none",
+    name = "Reference Line"
+  ) %>%
+  layout(
+    title = list(text = "Predicted vs. Actual Bike Trip Counts<br><sup>Colored by Absolute Error</sup>", x = 0.5),
+    xaxis = list(title = "Actual Bike Trips"),
+    yaxis = list(title = "Predicted Bike Trips"),
+    hovermode = "closest"
+  )
+```
+
+```{r}
+pred_vs_actual <- tibble(
+  actual = rf_test$total_trips,
+  predicted = predict(final_rf, newdata = rf_test)
+) %>%
+  mutate(abs_error = abs(actual - predicted))
+
+# Compute R²
+rsq <- cor(pred_vs_actual$actual, pred_vs_actual$predicted)^2
+
+# Plot with color = abs error
+ggplot(pred_vs_actual, aes(x = actual, y = predicted)) +
+  geom_point(aes(color = abs_error), alpha = 0.6, size = 2) +
+  scale_color_gradientn(
+    colors = c("#BD0026", "#F03B20", "#FD8D3C", "#FECC5C", "#FFFFB2"),
+    name = "Absolute Error"
+  ) +
+  geom_abline(slope = 1, intercept = 0, linetype = "dashed", color = "gray40") +
+  labs(
+    title = "Predicted vs. Actual Bike Trip Counts (Random Forest CV)",
+    subtitle = paste0("R² = ", round(get_metric_value(metrics_test_rf, "rsq"), 3), 
+                      ", RMSE = ", round(get_metric_value(metrics_test_rf, "rmse"), 3), 
+                      ", MAE = ", round(get_metric_value(metrics_test_rf, "mae"), 3)),
+    x = "Actual Bike Trips",
+    y = "Predicted Bike Trips"
+  ) +
+  theme_minimal(base_size = 14) +
+  theme(
+    plot.title = element_text(face = "bold", hjust = 0.5),
+    plot.subtitle = element_text(hjust = 0.5),
+    legend.title = element_text(size = 11)
+  )
+```
+
+```{r}
+pred_vs_actual <- pred_vs_actual %>%
+  mutate(residual = abs(predicted - actual))
+
+axis_min <- min(pred_vs_actual$actual, pred_vs_actual$predicted)
+axis_max <- max(pred_vs_actual$actual, pred_vs_actual$predicted)
+
+plot_ly() %>%
+  add_trace(
+    data = pred_vs_actual,
+    x = ~actual,
+    y = ~predicted,
+    type = "scatter",
+    mode = "markers",
+    marker = list(
+      color = ~residual,
+      colorscale = "YlOrRd",
+      colorbar = list(title = "Absolute Error"),
+      opacity = 0.6,
+      size = 6
+    ),
+    text = ~paste("Actual:", actual,
+                  "<br>Predicted:", round(predicted, 1),
+                  "<br>Absolute Error:", round(residual, 1)),
+    hoverinfo = "text",
+    name = "Predictions"
+  ) %>%
+  add_trace(
+    x = c(axis_min, axis_max),
+    y = c(axis_min, axis_max),
+    type = "scatter",
+    mode = "lines",
+    line = list(dash = "dash", color = "gray"),
+    showlegend = FALSE,
+    hoverinfo = "none"
+  ) %>%
+  layout(
+    title = list(text = "Predicted vs. Actual Bike Trip Counts<br><sup>Colored by Absolute Error (Random Forest)</sup>", x = 0.5),
+    xaxis = list(title = "Actual Bike Trips"),
+    yaxis = list(title = "Predicted Bike Trips"),
+    hovermode = "closest"
+  )
+```

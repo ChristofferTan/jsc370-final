@@ -1,0 +1,747 @@
+<!DOCTYPE html>
+
+<html>
+
+<head>
+
+<meta charset="utf-8" />
+<meta name="generator" content="pandoc" />
+<meta http-equiv="X-UA-Compatible" content="IE=EDGE" />
+
+
+
+
+<title>Machine Learning (ML) Analysis</title>
+
+<script src="site_libs/header-attrs-2.29/header-attrs.js"></script>
+<script src="site_libs/jquery-3.6.0/jquery-3.6.0.min.js"></script>
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<link href="site_libs/bootstrap-3.3.5/css/flatly.min.css" rel="stylesheet" />
+<script src="site_libs/bootstrap-3.3.5/js/bootstrap.min.js"></script>
+<script src="site_libs/bootstrap-3.3.5/shim/html5shiv.min.js"></script>
+<script src="site_libs/bootstrap-3.3.5/shim/respond.min.js"></script>
+<style>h1 {font-size: 34px;}
+       h1.title {font-size: 38px;}
+       h2 {font-size: 30px;}
+       h3 {font-size: 24px;}
+       h4 {font-size: 18px;}
+       h5 {font-size: 16px;}
+       h6 {font-size: 12px;}
+       code {color: inherit; background-color: rgba(0, 0, 0, 0.04);}
+       pre:not([class]) { background-color: white }</style>
+<script src="site_libs/jqueryui-1.13.2/jquery-ui.min.js"></script>
+<link href="site_libs/tocify-1.9.1/jquery.tocify.css" rel="stylesheet" />
+<script src="site_libs/tocify-1.9.1/jquery.tocify.js"></script>
+<script src="site_libs/navigation-1.1/tabsets.js"></script>
+<link href="site_libs/highlightjs-9.12.0/default.css" rel="stylesheet" />
+<script src="site_libs/highlightjs-9.12.0/highlight.js"></script>
+<script src="site_libs/kePrint-0.0.1/kePrint.js"></script>
+<link href="site_libs/lightable-0.0.1/lightable.css" rel="stylesheet" />
+<script src="site_libs/htmlwidgets-1.6.4/htmlwidgets.js"></script>
+<script src="site_libs/plotly-binding-4.10.4/plotly.js"></script>
+<script src="site_libs/typedarray-0.1/typedarray.min.js"></script>
+<link href="site_libs/crosstalk-1.2.1/css/crosstalk.min.css" rel="stylesheet" />
+<script src="site_libs/crosstalk-1.2.1/js/crosstalk.min.js"></script>
+<link href="site_libs/plotly-htmlwidgets-css-2.11.1/plotly-htmlwidgets.css" rel="stylesheet" />
+<script src="site_libs/plotly-main-2.11.1/plotly-latest.min.js"></script>
+<link href="site_libs/htmltools-fill-0.5.8.1/fill.css" rel="stylesheet" />
+<link href="site_libs/font-awesome-6.5.2/css/all.min.css" rel="stylesheet" />
+<link href="site_libs/font-awesome-6.5.2/css/v4-shims.min.css" rel="stylesheet" />
+
+<style type="text/css">
+  code{white-space: pre-wrap;}
+  span.smallcaps{font-variant: small-caps;}
+  span.underline{text-decoration: underline;}
+  div.column{display: inline-block; vertical-align: top; width: 50%;}
+  div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+  ul.task-list{list-style: none;}
+    </style>
+
+<style type="text/css">code{white-space: pre;}</style>
+<script type="text/javascript">
+if (window.hljs) {
+  hljs.configure({languages: []});
+  hljs.initHighlightingOnLoad();
+  if (document.readyState && document.readyState === "complete") {
+    window.setTimeout(function() { hljs.initHighlighting(); }, 0);
+  }
+}
+</script>
+
+
+
+
+
+
+<link rel="stylesheet" href="style.css" type="text/css" />
+
+
+
+<style type = "text/css">
+.main-container {
+  max-width: 940px;
+  margin-left: auto;
+  margin-right: auto;
+}
+img {
+  max-width:100%;
+}
+.tabbed-pane {
+  padding-top: 12px;
+}
+.html-widget {
+  margin-bottom: 20px;
+}
+button.code-folding-btn:focus {
+  outline: none;
+}
+summary {
+  display: list-item;
+}
+details > summary > p:only-child {
+  display: inline;
+}
+pre code {
+  padding: 0;
+}
+</style>
+
+
+<style type="text/css">
+.dropdown-submenu {
+  position: relative;
+}
+.dropdown-submenu>.dropdown-menu {
+  top: 0;
+  left: 100%;
+  margin-top: -6px;
+  margin-left: -1px;
+  border-radius: 0 6px 6px 6px;
+}
+.dropdown-submenu:hover>.dropdown-menu {
+  display: block;
+}
+.dropdown-submenu>a:after {
+  display: block;
+  content: " ";
+  float: right;
+  width: 0;
+  height: 0;
+  border-color: transparent;
+  border-style: solid;
+  border-width: 5px 0 5px 5px;
+  border-left-color: #cccccc;
+  margin-top: 5px;
+  margin-right: -10px;
+}
+.dropdown-submenu:hover>a:after {
+  border-left-color: #adb5bd;
+}
+.dropdown-submenu.pull-left {
+  float: none;
+}
+.dropdown-submenu.pull-left>.dropdown-menu {
+  left: -100%;
+  margin-left: 10px;
+  border-radius: 6px 0 6px 6px;
+}
+</style>
+
+<script type="text/javascript">
+// manage active state of menu based on current page
+$(document).ready(function () {
+  // active menu anchor
+  href = window.location.pathname
+  href = href.substr(href.lastIndexOf('/') + 1)
+  if (href === "")
+    href = "index.html";
+  var menuAnchor = $('a[href="' + href + '"]');
+
+  // mark the anchor link active (and if it's in a dropdown, also mark that active)
+  var dropdown = menuAnchor.closest('li.dropdown');
+  if (window.bootstrap) { // Bootstrap 4+
+    menuAnchor.addClass('active');
+    dropdown.find('> .dropdown-toggle').addClass('active');
+  } else { // Bootstrap 3
+    menuAnchor.parent().addClass('active');
+    dropdown.addClass('active');
+  }
+
+  // Navbar adjustments
+  var navHeight = $(".navbar").first().height() + 15;
+  var style = document.createElement('style');
+  var pt = "padding-top: " + navHeight + "px; ";
+  var mt = "margin-top: -" + navHeight + "px; ";
+  var css = "";
+  // offset scroll position for anchor links (for fixed navbar)
+  for (var i = 1; i <= 6; i++) {
+    css += ".section h" + i + "{ " + pt + mt + "}\n";
+  }
+  style.innerHTML = "body {" + pt + "padding-bottom: 40px; }\n" + css;
+  document.head.appendChild(style);
+});
+</script>
+
+<!-- tabsets -->
+
+<style type="text/css">
+.tabset-dropdown > .nav-tabs {
+  display: inline-table;
+  max-height: 500px;
+  min-height: 44px;
+  overflow-y: auto;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+}
+
+.tabset-dropdown > .nav-tabs > li.active:before, .tabset-dropdown > .nav-tabs.nav-tabs-open:before {
+  content: "\e259";
+  font-family: 'Glyphicons Halflings';
+  display: inline-block;
+  padding: 10px;
+  border-right: 1px solid #ddd;
+}
+
+.tabset-dropdown > .nav-tabs.nav-tabs-open > li.active:before {
+  content: "\e258";
+  font-family: 'Glyphicons Halflings';
+  border: none;
+}
+
+.tabset-dropdown > .nav-tabs > li.active {
+  display: block;
+}
+
+.tabset-dropdown > .nav-tabs > li > a,
+.tabset-dropdown > .nav-tabs > li > a:focus,
+.tabset-dropdown > .nav-tabs > li > a:hover {
+  border: none;
+  display: inline-block;
+  border-radius: 4px;
+  background-color: transparent;
+}
+
+.tabset-dropdown > .nav-tabs.nav-tabs-open > li {
+  display: block;
+  float: none;
+}
+
+.tabset-dropdown > .nav-tabs > li {
+  display: none;
+}
+</style>
+
+<!-- code folding -->
+
+
+
+<style type="text/css">
+
+#TOC {
+  margin: 25px 0px 20px 0px;
+}
+@media (max-width: 768px) {
+#TOC {
+  position: relative;
+  width: 100%;
+}
+}
+
+@media print {
+.toc-content {
+  /* see https://github.com/w3c/csswg-drafts/issues/4434 */
+  float: right;
+}
+}
+
+.toc-content {
+  padding-left: 30px;
+  padding-right: 40px;
+}
+
+div.main-container {
+  max-width: 1200px;
+}
+
+div.tocify {
+  width: 20%;
+  max-width: 260px;
+  max-height: 85%;
+}
+
+@media (min-width: 768px) and (max-width: 991px) {
+  div.tocify {
+    width: 25%;
+  }
+}
+
+@media (max-width: 767px) {
+  div.tocify {
+    width: 100%;
+    max-width: none;
+  }
+}
+
+.tocify ul, .tocify li {
+  line-height: 20px;
+}
+
+.tocify-subheader .tocify-item {
+  font-size: 0.90em;
+}
+
+.tocify .list-group-item {
+  border-radius: 0px;
+}
+
+
+</style>
+
+
+
+</head>
+
+<body>
+
+
+<div class="container-fluid main-container">
+
+
+<!-- setup 3col/9col grid for toc_float and main content  -->
+<div class="row">
+<div class="col-xs-12 col-sm-4 col-md-3">
+<div id="TOC" class="tocify">
+</div>
+</div>
+
+<div class="toc-content col-xs-12 col-sm-8 col-md-9">
+
+
+
+
+<div class="navbar navbar-default  navbar-fixed-top" role="navigation">
+  <div class="container">
+    <div class="navbar-header">
+      <button type="button" class="navbar-toggle collapsed" data-toggle="collapse" data-bs-toggle="collapse" data-target="#navbar" data-bs-target="#navbar">
+        <span class="icon-bar"></span>
+        <span class="icon-bar"></span>
+        <span class="icon-bar"></span>
+      </button>
+      <a class="navbar-brand" href="index.html">Toronto Bike Share Prediction</a>
+    </div>
+    <div id="navbar" class="navbar-collapse collapse">
+      <ul class="nav navbar-nav">
+        <li>
+  <a href="about.html">About</a>
+</li>
+<li>
+  <a href="eda.html">EDA</a>
+</li>
+<li>
+  <a href="ml.html">ML</a>
+</li>
+<li>
+  <a href="appendix.html">Appendices</a>
+</li>
+      </ul>
+      <ul class="nav navbar-nav navbar-right">
+        <li>
+  <a href="mailto:christoffer.tan@mail.utoronto.ca">
+    <span class="fas fa-envelope"></span>
+     
+  </a>
+</li>
+<li>
+  <a href="https://github.com/ChristofferTan/jsc370-final">
+    <span class="fab fa-github"></span>
+     
+  </a>
+</li>
+<li>
+  <a href="https://linkedin.com/in/christoffertan">
+    <span class="fab fa-linkedin"></span>
+     
+  </a>
+</li>
+      </ul>
+    </div><!--/.nav-collapse -->
+  </div><!--/.container -->
+</div><!--/.navbar -->
+
+<div id="header">
+
+
+
+<h1 class="title toc-ignore">Machine Learning (ML) Analysis</h1>
+
+</div>
+
+
+<div id="model-performance-comparison" class="section level2">
+<h2>Model Performance Comparison</h2>
+<p>Below is a summary of the training and test set performance for each
+model.</p>
+<table class="table" style="width: auto !important; ">
+<thead>
+<tr>
+<th style="empty-cells: hide;border-bottom:hidden;" colspan="1">
+</th>
+<th style="border-bottom:hidden;padding-bottom:0; padding-left:3px;padding-right:3px;text-align: center; font-weight: bold; " colspan="3">
+<div style="border-bottom: 1px solid #ddd; padding-bottom: 5px; ">
+Train Set
+</div>
+</th>
+<th style="border-bottom:hidden;padding-bottom:0; padding-left:3px;padding-right:3px;text-align: center; font-weight: bold; " colspan="3">
+<div style="border-bottom: 1px solid #ddd; padding-bottom: 5px; ">
+Test Set
+</div>
+</th>
+</tr>
+<tr>
+<th style="text-align:left;">
+Model
+</th>
+<th style="text-align:center;">
+<span class="math inline">\(R^2\)</span>
+</th>
+<th style="text-align:center;">
+RMSE
+</th>
+<th style="text-align:center;">
+MAE
+</th>
+<th style="text-align:center;">
+<span class="math inline">\(R^2\)</span>
+</th>
+<th style="text-align:center;">
+RMSE
+</th>
+<th style="text-align:center;">
+MAE
+</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:left;">
+Linear Regression (LM)
+</td>
+<td style="text-align:center;">
+0.826
+</td>
+<td style="text-align:center;">
+360.692
+</td>
+<td style="text-align:center;">
+251.108
+</td>
+<td style="text-align:center;">
+0.830
+</td>
+<td style="text-align:center;">
+347.020
+</td>
+<td style="text-align:center;">
+245.548
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+GLM (Negative Binomial)
+</td>
+<td style="text-align:center;">
+0.817
+</td>
+<td style="text-align:center;">
+368.451
+</td>
+<td style="text-align:center;">
+254.049
+</td>
+<td style="text-align:center;">
+0.819
+</td>
+<td style="text-align:center;">
+359.205
+</td>
+<td style="text-align:center;">
+252.532
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+GAM (Negative Binomial)
+</td>
+<td style="text-align:center;">
+0.829
+</td>
+<td style="text-align:center;">
+355.891
+</td>
+<td style="text-align:center;">
+246.153
+</td>
+<td style="text-align:center;">
+0.833
+</td>
+<td style="text-align:center;">
+343.998
+</td>
+<td style="text-align:center;">
+246.577
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+Random Forest (Default)
+</td>
+<td style="text-align:center;">
+0.965
+</td>
+<td style="text-align:center;">
+174.114
+</td>
+<td style="text-align:center;">
+122.431
+</td>
+<td style="text-align:center;">
+0.845
+</td>
+<td style="text-align:center;">
+336.344
+</td>
+<td style="text-align:center;">
+250.219
+</td>
+</tr>
+<tr>
+<td style="text-align:left;font-weight: bold;">
+Random Forest (CV-Tuned)
+</td>
+<td style="text-align:center;font-weight: bold;">
+0.952
+</td>
+<td style="text-align:center;font-weight: bold;">
+193.634
+</td>
+<td style="text-align:center;font-weight: bold;">
+132.163
+</td>
+<td style="text-align:center;font-weight: bold;">
+0.846
+</td>
+<td style="text-align:center;font-weight: bold;">
+330.028
+</td>
+<td style="text-align:center;font-weight: bold;">
+236.966
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+XGBoost (Default)
+</td>
+<td style="text-align:center;">
+0.978
+</td>
+<td style="text-align:center;">
+129.561
+</td>
+<td style="text-align:center;">
+85.818
+</td>
+<td style="text-align:center;">
+0.830
+</td>
+<td style="text-align:center;">
+347.255
+</td>
+<td style="text-align:center;">
+247.811
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+XGBoost (CV-Tuned)
+</td>
+<td style="text-align:center;">
+0.905
+</td>
+<td style="text-align:center;">
+268.267
+</td>
+<td style="text-align:center;">
+184.694
+</td>
+<td style="text-align:center;">
+0.845
+</td>
+<td style="text-align:center;">
+331.139
+</td>
+<td style="text-align:center;">
+238.871
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+<div id="model-descriptions" class="section level2 tabset">
+<h2 class="tabset">Model Descriptions</h2>
+<div id="linear-regression" class="section level3">
+<h3>Linear Regression</h3>
+<p>Linear regression was used as a baseline model to understand how bike
+usage responds to weather features under the assumption of a linear
+relationship. After stepwise variable selection and Box-Cox
+transformations to stabilize variance, the final model included key
+predictors like hour of day, temperature, humidity, and weather
+condition. However, its limitations stem from the assumption of linear
+relationships, which may oversimplify the complex interactions between
+weather and bike usage.</p>
+</div>
+<div id="glm" class="section level3">
+<h3>GLM</h3>
+<p>Initially, a Poisson GLM was applied to model hourly bike trip
+counts, treating them as count data. However, model diagnostics revealed
+substantial overdispersion, violating the assumptions of the Poisson
+distribution. To address this, the final model used a Negative Binomial
+distribution, which better accounted for variance. The fitted model
+included hour, temperature, humidity, and weather conditions. The model
+confirmed expected effects, such as higher demand during commuting hours
+and lower usage under unfavorable weather.</p>
+</div>
+<div id="gam" class="section level3">
+<h3>GAM</h3>
+<p>To flexibly capture nonlinear patterns, a GAM with a Negative
+Binomial family was fitted using smooth terms for key continuous
+variables. The final model incorporated smooth splines for temperature
+and wind speed, allowing the effect of these variables to vary across
+their range. The results showed a sharp increase in ridership with
+temperature up to about 20°C before flattening, while wind speed had a
+steady negative impact. By relaxing linearity assumptions, the GAM
+uncovered important behavioral dynamics that were missed by simpler
+models.</p>
+<p><img src="ml_files/figure-html/unnamed-chunk-3-1.png" width="672" /></p>
+</div>
+<div id="random-forest" class="section level3">
+<h3>Random Forest</h3>
+<p>Random Forests combine the predictions of many individual decision
+trees, using bootstrapped samples and random subsets of features to
+reduce variance and avoid overfitting. In this project, a tuned Random
+Forest model was selected using 5-fold cross-validation, with the final
+configuration using <em>mtry</em> = 4, <em>ntree</em> = 500, and
+<em>nodesize = 10</em>. This model consistently delivered strong
+predictive performance. The variable importance analysis revealed that
+<strong>hour of day</strong> and <strong>temperature</strong> were by
+far the most influential factors, indicating that temporal patterns and
+thermal comfort are key drivers of bikeshare usage in Toronto. The full
+hyperparameter grid used for tuning is detailed in <a
+href="Appendix.html">Appendix B</a>.</p>
+<div id="htmlwidget-b92955c0dbf65b1524dc" style="width:672px;height:500px;" class="plotly html-widget"></div>
+<script type="application/json" data-for="htmlwidget-b92955c0dbf65b1524dc">{"x":{"data":[{"x":[18.91701440206327,19.591037471341448,24.77519653951261,28.228356457842278,38.844412982966041,55.954573568914093,106.80497400952748],"y":["cloudiness","wind_speed","weather_main","pressure","humidity","temp","hour"],"orientation":"h","text":["18.9%","19.6%","24.8%","28.2%","38.8%","56%","106.8%"],"textposition":["inside","inside","inside","inside","inside","inside","inside"],"insidetextanchor":"start","textfont":{"color":"black","size":12},"marker":{"color":[18.91701440206327,19.591037471341448,24.77519653951261,28.228356457842278,38.844412982966041,55.954573568914093,106.80497400952748],"colorscale":[["0","#FFFFB2"],["0.25","#FECC5C"],["0.5","#FD8D3C"],["0.75","#F03B20"],["1","#BD0026"]],"line":{"color":"black","width":0.5}},"hovertemplate":["<b>%{y}<\/b><br> Importance: %{x:.1f}%<extra><\/extra>","<b>%{y}<\/b><br> Importance: %{x:.1f}%<extra><\/extra>","<b>%{y}<\/b><br> Importance: %{x:.1f}%<extra><\/extra>","<b>%{y}<\/b><br> Importance: %{x:.1f}%<extra><\/extra>","<b>%{y}<\/b><br> Importance: %{x:.1f}%<extra><\/extra>","<b>%{y}<\/b><br> Importance: %{x:.1f}%<extra><\/extra>","<b>%{y}<\/b><br> Importance: %{x:.1f}%<extra><\/extra>"],"type":"bar","error_y":{"color":"rgba(31,119,180,1)"},"error_x":{"color":"rgba(31,119,180,1)"},"xaxis":"x","yaxis":"y","frame":null},{"x":[16.776633250902425,18.044044764805015,28.392229346712217,30.367633337148607,39.609729875534583,83.841562651763908,199.9110505312525],"y":["wind_speed","cloudiness","pressure","weather_main","humidity","temp","hour"],"orientation":"h","text":["16.8%","18%","28.4%","30.4%","39.6%","83.8%","199.9%"],"textposition":["inside","inside","inside","inside","inside","inside","inside"],"insidetextanchor":"start","textfont":{"color":"black","size":12},"marker":{"color":[16.776633250902425,18.044044764805015,28.392229346712217,30.367633337148607,39.609729875534583,83.841562651763908,199.9110505312525],"colorscale":[["0","#FFFFB2"],["0.25","#FECC5C"],["0.5","#FD8D3C"],["0.75","#F03B20"],["1","#BD0026"]],"line":{"color":"black","width":0.5}},"hovertemplate":["<b>%{y}<\/b><br> Importance: %{x:.1f}%<extra><\/extra>","<b>%{y}<\/b><br> Importance: %{x:.1f}%<extra><\/extra>","<b>%{y}<\/b><br> Importance: %{x:.1f}%<extra><\/extra>","<b>%{y}<\/b><br> Importance: %{x:.1f}%<extra><\/extra>","<b>%{y}<\/b><br> Importance: %{x:.1f}%<extra><\/extra>","<b>%{y}<\/b><br> Importance: %{x:.1f}%<extra><\/extra>","<b>%{y}<\/b><br> Importance: %{x:.1f}%<extra><\/extra>"],"type":"bar","error_y":{"color":"rgba(255,127,14,1)"},"error_x":{"color":"rgba(255,127,14,1)"},"xaxis":"x2","yaxis":"y2","frame":null}],"layout":{"xaxis":{"domain":[0,1],"automargin":true,"title":"Importance (%IncMSE)","titlefont":{"size":14},"anchor":"y"},"xaxis2":{"domain":[0,1],"automargin":true,"title":"Importance (%IncMSE)","titlefont":{"size":14},"anchor":"y2"},"yaxis2":{"domain":[0,0.34999999999999998],"automargin":true,"title":"","tickfont":{"size":14},"tickpadding":20,"type":"category","categoryorder":"array","categoryarray":["wind_speed","cloudiness","pressure","weather_main","humidity","temp","hour"],"anchor":"x2"},"yaxis":{"domain":[0.65000000000000002,1],"automargin":true,"title":"","tickfont":{"size":14},"tickpadding":20,"type":"category","categoryorder":"array","categoryarray":["cloudiness","wind_speed","weather_main","pressure","humidity","temp","hour"],"anchor":"x"},"annotations":[{"x":0.5,"y":1.0800000000000001,"text":"<b>Default<\/b>","showarrow":false,"xref":"paper","yref":"paper","font":{"size":14}},{"x":0.5,"y":0.40000000000000002,"text":"<b>CV-Tuned<\/b>","showarrow":false,"xref":"paper","yref":"paper","font":{"size":14}}],"shapes":[],"images":[],"height":500,"margin":{"b":50,"l":180,"t":100,"r":40},"title":{"text":"Variable Importance: Random Forest (Default) vs (CV-Tuned)","x":0.5,"font":{"size":18}},"showlegend":false,"paper_bgcolor":"#ffffff","plot_bgcolor":"#ffffff","hovermode":"closest"},"attrs":{"302c3e29f687":{"x":{},"y":{},"orientation":"h","text":{},"textposition":"inside","insidetextanchor":"start","textfont":{"color":"black","size":12},"marker":{"color":{},"colorscale":[["0","#FFFFB2"],["0.25","#FECC5C"],["0.5","#FD8D3C"],["0.75","#F03B20"],["1","#BD0026"]],"line":{"color":"black","width":0.5}},"hovertemplate":"<b>%{y}<\/b><br> Importance: %{x:.1f}%<extra><\/extra>","alpha_stroke":1,"sizes":[10,100],"spans":[1,20],"type":"bar"},"302c34f838f3":{"x":{},"y":{},"orientation":"h","text":{},"textposition":"inside","insidetextanchor":"start","textfont":{"color":"black","size":12},"marker":{"color":{},"colorscale":[["0","#FFFFB2"],["0.25","#FECC5C"],["0.5","#FD8D3C"],["0.75","#F03B20"],["1","#BD0026"]],"line":{"color":"black","width":0.5}},"hovertemplate":"<b>%{y}<\/b><br> Importance: %{x:.1f}%<extra><\/extra>","alpha_stroke":1,"sizes":[10,100],"spans":[1,20],"type":"bar"}},"source":"A","config":{"modeBarButtonsToAdd":["hoverclosest","hovercompare"],"showSendToCloud":false},"highlight":{"on":"plotly_click","persistent":false,"dynamic":false,"selectize":false,"opacityDim":0.20000000000000001,"selected":{"opacity":1},"debounce":0},"subplot":true,"shinyEvents":["plotly_hover","plotly_click","plotly_selected","plotly_relayout","plotly_brushed","plotly_brushing","plotly_clickannotation","plotly_doubleclick","plotly_deselect","plotly_afterplot","plotly_sunburstclick"],"base_url":"https://plot.ly"},"evals":[],"jsHooks":[]}</script>
+</div>
+<div id="xgboost" class="section level3">
+<h3>XGBoost</h3>
+<p>XGBoost (Extreme Gradient Boosting) is a powerful tree-based
+algorithm that builds models sequentially, where each tree focuses on
+correcting the errors of the previous one. After tuning through
+extensive cross-validation, the best-performing model used <em>eta =
+0.05</em>, <em>max_depth</em> = 6, <em>min_child_weight</em> = 3,
+<em>subsample</em> = 0.8, and <em>colsample_bytree</em> = 1. This
+configuration balanced bias and variance well and produced accurate
+forecasts. Like Random Forest, XGBoost identified hour of day and
+temperature as the most critical predictors, though its feature
+importance plot showed a steeper concentration of influence on fewer
+variables, reflecting the model’s ability to prioritize the strongest
+signals in the data. The full hyperparameter grid used for tuning is
+detailed in <a href="Appendix.html">Appendix B</a>.</p>
+<div class="plotly html-widget html-fill-item" id="htmlwidget-277ba15c0d42a4c7fc70" style="width:672px;height:480px;"></div>
+<script type="application/json" data-for="htmlwidget-277ba15c0d42a4c7fc70">{"x":{"data":[{"x":[0.01188006417999289,0.019995675289193923,0.021436003147405288,0.022604802466572069,0.037676596845737979,0.13511070971658445,0.75129614835451342],"y":["weather_main","cloudiness","wind_speed","pressure","humidity","temp","hour"],"orientation":"h","text":["1.2%","2%","2.1%","2.3%","3.8%","13.5%","75.1%"],"textposition":["outside","outside","outside","outside","outside","outside","outside"],"marker":{"color":[0.01188006417999289,0.019995675289193923,0.021436003147405288,0.022604802466572069,0.037676596845737979,0.13511070971658445,0.75129614835451342],"colorscale":[["0","#e0f3db"],["0.33","#a8ddb5"],["0.66","#43a2ca"],["1","#006d2c"]],"line":{"color":"black","width":0.5}},"hovertemplate":["<b>%{y}<\/b><br> Gain: %{x:.4f}<extra><\/extra>","<b>%{y}<\/b><br> Gain: %{x:.4f}<extra><\/extra>","<b>%{y}<\/b><br> Gain: %{x:.4f}<extra><\/extra>","<b>%{y}<\/b><br> Gain: %{x:.4f}<extra><\/extra>","<b>%{y}<\/b><br> Gain: %{x:.4f}<extra><\/extra>","<b>%{y}<\/b><br> Gain: %{x:.4f}<extra><\/extra>","<b>%{y}<\/b><br> Gain: %{x:.4f}<extra><\/extra>"],"type":"bar","error_y":{"color":"rgba(31,119,180,1)"},"error_x":{"color":"rgba(31,119,180,1)"},"xaxis":"x","yaxis":"y","frame":null},{"x":[0.012253566636104414,0.014350241106841589,0.015429879823538889,0.017169247467265187,0.035623522611800254,0.12237674206893542,0.78279680028551424],"y":["weather_main","cloudiness","wind_speed","pressure","humidity","temp","hour"],"orientation":"h","text":["1.2%","1.4%","1.5%","1.7%","3.6%","12.2%","78.3%"],"textposition":["outside","outside","outside","outside","outside","outside","outside"],"marker":{"color":[0.012253566636104414,0.014350241106841589,0.015429879823538889,0.017169247467265187,0.035623522611800254,0.12237674206893542,0.78279680028551424],"colorscale":[["0","#e0f3db"],["0.33","#a8ddb5"],["0.66","#43a2ca"],["1","#006d2c"]],"line":{"color":"black","width":0.5}},"hovertemplate":["<b>%{y}<\/b><br> Gain: %{x:.4f}<extra><\/extra>","<b>%{y}<\/b><br> Gain: %{x:.4f}<extra><\/extra>","<b>%{y}<\/b><br> Gain: %{x:.4f}<extra><\/extra>","<b>%{y}<\/b><br> Gain: %{x:.4f}<extra><\/extra>","<b>%{y}<\/b><br> Gain: %{x:.4f}<extra><\/extra>","<b>%{y}<\/b><br> Gain: %{x:.4f}<extra><\/extra>","<b>%{y}<\/b><br> Gain: %{x:.4f}<extra><\/extra>"],"type":"bar","error_y":{"color":"rgba(255,127,14,1)"},"error_x":{"color":"rgba(255,127,14,1)"},"xaxis":"x2","yaxis":"y2","frame":null}],"layout":{"xaxis":{"domain":[0,1],"automargin":true,"title":"Importance (Gain)","anchor":"y"},"xaxis2":{"domain":[0,1],"automargin":true,"title":"Importance (Gain)","anchor":"y2"},"yaxis2":{"domain":[0,0.34999999999999998],"automargin":true,"title":"","type":"category","categoryorder":"array","categoryarray":["weather_main","cloudiness","wind_speed","pressure","humidity","temp","hour"],"anchor":"x2"},"yaxis":{"domain":[0.65000000000000002,1],"automargin":true,"title":"","type":"category","categoryorder":"array","categoryarray":["weather_main","cloudiness","wind_speed","pressure","humidity","temp","hour"],"anchor":"x"},"annotations":[{"x":0.5,"y":1.0800000000000001,"text":"<b>Default<\/b>","showarrow":false,"xref":"paper","yref":"paper","font":{"size":14}},{"x":0.5,"y":0.40000000000000002,"text":"<b>CV-Tuned<\/b>","showarrow":false,"xref":"paper","yref":"paper","font":{"size":14}}],"shapes":[],"images":[],"margin":{"b":40,"l":60,"t":100,"r":10},"title":{"text":"Variable Importance: XGBoost (Default) vs (CV-Tuned)","x":0.5,"y":0.90000000000000002,"font":{"size":18}},"showlegend":false,"hovermode":"closest"},"attrs":{"302c1462f4b0":{"x":{},"y":{},"orientation":"h","text":{},"textposition":"outside","marker":{"color":{},"colorscale":[["0","#e0f3db"],["0.33","#a8ddb5"],["0.66","#43a2ca"],["1","#006d2c"]],"line":{"color":"black","width":0.5}},"hovertemplate":"<b>%{y}<\/b><br> Gain: %{x:.4f}<extra><\/extra>","alpha_stroke":1,"sizes":[10,100],"spans":[1,20],"type":"bar"},"302c2a66b71a":{"x":{},"y":{},"orientation":"h","text":{},"textposition":"outside","marker":{"color":{},"colorscale":[["0","#e0f3db"],["0.33","#a8ddb5"],["0.66","#43a2ca"],["1","#006d2c"]],"line":{"color":"black","width":0.5}},"hovertemplate":"<b>%{y}<\/b><br> Gain: %{x:.4f}<extra><\/extra>","alpha_stroke":1,"sizes":[10,100],"spans":[1,20],"type":"bar"}},"source":"A","config":{"modeBarButtonsToAdd":["hoverclosest","hovercompare"],"showSendToCloud":false},"highlight":{"on":"plotly_click","persistent":false,"dynamic":false,"selectize":false,"opacityDim":0.20000000000000001,"selected":{"opacity":1},"debounce":0},"subplot":true,"shinyEvents":["plotly_hover","plotly_click","plotly_selected","plotly_relayout","plotly_brushed","plotly_brushing","plotly_clickannotation","plotly_doubleclick","plotly_deselect","plotly_afterplot","plotly_sunburstclick"],"base_url":"https://plot.ly"},"evals":[],"jsHooks":[]}</script>
+</div>
+</div>
+
+<footer class="footer">
+  <p style="margin: 0.3rem 0;">&copy; 2025 Christoffer Tan • University of Toronto</p>
+  <p style="margin: 0;">
+    <a href="mailto:christoffer.tan@mail.utoronto.ca">christoffer.tan@mail.utoronto.ca</a> •
+    <a href="docs/report.pdf">Download the Full Report</a>
+  </p>
+</footer>
+
+
+</div>
+</div>
+
+</div>
+
+<script>
+
+// add bootstrap table styles to pandoc tables
+function bootstrapStylePandocTables() {
+  $('tr.odd').parent('tbody').parent('table').addClass('table table-condensed');
+}
+$(document).ready(function () {
+  bootstrapStylePandocTables();
+});
+
+
+</script>
+
+<!-- tabsets -->
+
+<script>
+$(document).ready(function () {
+  window.buildTabsets("TOC");
+});
+
+$(document).ready(function () {
+  $('.tabset-dropdown > .nav-tabs > li').click(function () {
+    $(this).parent().toggleClass('nav-tabs-open');
+  });
+});
+</script>
+
+<!-- code folding -->
+
+<script>
+$(document).ready(function ()  {
+
+    // temporarily add toc-ignore selector to headers for the consistency with Pandoc
+    $('.unlisted.unnumbered').addClass('toc-ignore')
+
+    // move toc-ignore selectors from section div to header
+    $('div.section.toc-ignore')
+        .removeClass('toc-ignore')
+        .children('h1,h2,h3,h4,h5').addClass('toc-ignore');
+
+    // establish options
+    var options = {
+      selectors: "h1,h2,h3",
+      theme: "bootstrap3",
+      context: '.toc-content',
+      hashGenerator: function (text) {
+        return text.replace(/[.\\/?&!#<>]/g, '').replace(/\s/g, '_');
+      },
+      ignoreSelector: ".toc-ignore",
+      scrollTo: 0
+    };
+    options.showAndHide = true;
+    options.smoothScroll = true;
+
+    // tocify
+    var toc = $("#TOC").tocify(options).data("toc-tocify");
+});
+</script>
+
+<!-- dynamically load mathjax for compatibility with self-contained -->
+<script>
+  (function () {
+    var script = document.createElement("script");
+    script.type = "text/javascript";
+    script.src  = "https://mathjax.rstudio.com/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML";
+    document.getElementsByTagName("head")[0].appendChild(script);
+  })();
+</script>
+
+</body>
+</html>
