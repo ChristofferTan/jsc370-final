@@ -1,0 +1,180 @@
+---
+title: "Machine Learning (ML) Analysis"
+output: 
+  html_document:
+    toc: true
+    toc_float: true
+    theme: flatly
+    css: style.css
+---
+
+## Model Performance Comparison
+Below is a summary of the training and test set performance for each model.
+
+```{r, echo=FALSE, results='hide', message=FALSE, warning=FALSE}
+source("model.R")
+```
+
+```{r, echo=FALSE, warning=FALSE, style="display: flex;"}
+model_perf <- data.frame(
+  Model = c(
+    "Linear Regression (LM)",
+    "GLM (Negative Binomial)",
+    "GAM (Negative Binomial)",
+    "Random Forest (Default)",
+    "Random Forest (CV-Tuned)",
+    "XGBoost (Default)",
+    "XGBoost (CV-Tuned)"
+  ),
+  R2_Train = c(0.826, 0.817, 0.829, 0.965, 0.952, 0.978, 0.905),
+  RMSE_Train = c(360.692, 368.451, 355.891, 174.114, 193.634, 129.561, 268.267),
+  MAE_Train = c(251.108, 254.049, 246.153, 122.431, 132.163, 85.818, 184.694),
+  R2_Test = c(0.830, 0.819, 0.833, 0.845, 0.846, 0.830, 0.845),
+  RMSE_Test = c(347.020, 359.205, 343.998, 336.344, 330.028, 347.255, 331.139),
+  MAE_Test = c(245.548, 252.532, 246.577, 250.219, 236.966, 247.811, 238.871)
+)
+
+model_perf |>
+  kbl(
+    col.names = c("Model", "$R^2$", "RMSE", "MAE", "$R^2$", "RMSE", "MAE"),
+    align = "lcccccc",
+    escape = FALSE,
+    booktabs = TRUE
+  ) |>
+  add_header_above(c(" " = 1, "Train Set" = 3, "Test Set" = 3), bold = TRUE) %>%
+  row_spec(5, bold = TRUE) |>
+  kable_styling(full_width = FALSE, position = "left")
+```
+
+
+## Model Descriptions {.tabset}
+
+### Linear Regression
+Linear regression was used as a baseline model to understand how bike usage responds to weather features under the assumption of a linear relationship. After stepwise variable selection and Box-Cox transformations to stabilize variance, the final model included key predictors like hour of day, temperature, humidity, and weather condition. However, its limitations stem from the assumption of linear relationships, which may oversimplify the complex interactions between weather and bike usage.
+
+### GLM
+Initially, a Poisson GLM was applied to model hourly bike trip counts, treating them as count data. However, model diagnostics revealed substantial overdispersion, violating the assumptions of the Poisson distribution. To address this, the final model used a Negative Binomial distribution, which better accounted for variance. The fitted model included hour, temperature, humidity, and weather conditions. The model confirmed expected effects, such as higher demand during commuting hours and lower usage under unfavorable weather.
+
+### GAM
+To flexibly capture nonlinear patterns, a GAM with a Negative Binomial family was fitted using smooth terms for key continuous variables. The final model incorporated smooth splines for temperature and wind speed, allowing the effect of these variables to vary across their range. The results showed a sharp increase in ridership with temperature up to about 20°C before flattening, while wind speed had a steady negative impact. By relaxing linearity assumptions, the GAM uncovered important behavioral dynamics that were missed by simpler models.
+
+```{r, echo=FALSE, warning=FALSE, message=FALSE}
+par(mfrow = c(2, 1), mar = c(4.5, 4.5, 2.5, 1))
+
+plot(final_gam, 
+     select = which(sapply(final_gam$smooth, function(s) s$term) == "temp"),
+     shade = TRUE,
+     seWithMean = TRUE,
+     col = "#0072B2",
+     shade.col = adjustcolor("#0072B2", 0.3),
+     main = "Effect of Temperature on Ridership",
+     xlab = "Temperature (°C)",
+     ylab = "Smooth Effect")
+legend("bottomright",
+       legend = c("Smooth effect", "95% CI"),
+       col = c("#0072B2", adjustcolor("#0072B2", 0.3)),
+       lwd = c(2, 8),
+       bty = "n",
+       cex = 0.8)
+
+plot(final_gam, 
+     select = which(sapply(final_gam$smooth, function(s) s$term) == "wind_speed"),
+     shade = TRUE,
+     seWithMean = TRUE,
+     col = "#D55E00",
+     shade.col = adjustcolor("#D55E00", 0.3),
+     main = "Effect of Wind Speed on Ridership",
+     xlab = "Wind Speed (m/s)",
+     ylab = "Smooth Effect")
+legend("bottomright",
+       legend = c("Smooth effect", "95% CI"),
+       col = c("#D55E00", adjustcolor("#D55E00", 0.3)),
+       lwd = c(2, 8),
+       bty = "n",
+       cex = 0.8)
+```
+
+### Random Forest
+Random Forests combine the predictions of many individual decision trees, using bootstrapped samples and random subsets of features to reduce variance and avoid overfitting. In this project, a tuned Random Forest model was selected using 5-fold cross-validation, with the final configuration using _mtry_ = 4, _ntree_ = 500, and _nodesize = 10_. This model consistently delivered strong predictive performance. The variable importance analysis revealed that **hour of day** and **temperature** were by far the most influential factors, indicating that temporal patterns and thermal comfort are key drivers of bikeshare usage in Toronto. The full hyperparameter grid used for tuning is detailed in [Appendix B](Appendix.html).
+
+```{r, echo=FALSE, warning=FALSE, message=FALSE}
+subplot(
+  default_rf_var_importance,
+  final_rf_var_importance,
+  nrows = 2,
+  margin = 0.15,
+  titleX = TRUE,
+  titleY = TRUE
+) %>%
+  layout(
+    title = list(
+      text = "Variable Importance: Random Forest (Default) vs (CV-Tuned)",
+      x = 0.5,
+      font = list(size = 18)
+    ),
+    annotations = list(
+      list(
+        x = 0.5,
+        y = 1.08,
+        text = "<b>Default</b>",
+        showarrow = FALSE,
+        xref = "paper",
+        yref = "paper",
+        font = list(size = 14)
+      ),
+      list(
+        x = 0.5,
+        y = 0.4,
+        text = "<b>CV-Tuned</b>",
+        showarrow = FALSE,
+        xref = "paper",
+        yref = "paper",
+        font = list(size = 14)
+      )
+    )
+  )
+```
+
+
+### XGBoost
+XGBoost (Extreme Gradient Boosting) is a powerful tree-based algorithm that builds models sequentially, where each tree focuses on correcting the errors of the previous one. After tuning through extensive cross-validation, the best-performing model used _eta = 0.05_, _max_depth_ = 6, _min_child_weight_ = 3, _subsample_ = 0.8, and _colsample_bytree_ = 1. This configuration balanced bias and variance well and produced accurate forecasts. Like Random Forest, XGBoost identified hour of day and temperature as the most critical predictors, though its feature importance plot showed a steeper concentration of influence on fewer variables, reflecting the model’s ability to prioritize the strongest signals in the data. The full hyperparameter grid used for tuning is detailed in [Appendix B](Appendix.html).
+
+```{r, echo=FALSE, warning=FALSE, message=FALSE}
+subplot(
+  default_xgb_var_importance,
+  final_xgb_var_importance2,
+  nrows = 2,
+  margin = 0.15,
+  titleX = TRUE,
+  titleY = TRUE
+) %>%
+  layout(
+    title = list(
+      text = "Variable Importance: XGBoost (Default) vs (CV-Tuned)",
+      x = 0.5,
+      font = list(size = 18)
+    ),
+    annotations = list(
+      list(
+        x = 0.5,
+        y = 1.08,
+        text = "<b>Default</b>",
+        showarrow = FALSE,
+        xref = "paper",
+        yref = "paper",
+        font = list(size = 14)
+      ),
+      list(
+        x = 0.5,
+        y = 0.4,
+        text = "<b>CV-Tuned</b>",
+        showarrow = FALSE,
+        xref = "paper",
+        yref = "paper",
+        font = list(size = 14)
+      )
+    )
+  )
+
+```
+
