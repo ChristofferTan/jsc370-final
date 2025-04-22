@@ -1,5 +1,5 @@
 ---
-title: "Appendix"
+title: "Appendices"
 output: 
   html_document:
     toc: true

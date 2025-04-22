@@ -11,9 +11,11 @@ navbar:
       href: eda.html
     - text: "ML"
       href: ml.html
-  right:
-    - text: "Appendix"
+    - text: "Appendices"
       href: appendix.html
+  right:
+    - icon: fas fa-envelope
+      href: mailto:christoffer.tan@mail.utoronto.ca
     - icon: fab fa-github
       href: https://github.com/ChristofferTan/jsc370-final
     - icon: fab fa-linkedin
