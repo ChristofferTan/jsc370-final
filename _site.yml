@@ -1,0 +1,30 @@
+name: "Bike Share and Weather"
+title: "Toronto Bike Share Prediction"
+output_dir: "_site"
+
+navbar:
+  title: "Toronto Bike Share Prediction"
+  left:
+    - text: "About"
+      href: about.html
+    - text: "EDA"
+      href: eda.html
+    - text: "ML"
+      href: ml.html
+  right:
+    - text: "Appendix"
+      href: appendix.html
+    - icon: fab fa-github
+      href: https://github.com/ChristofferTan/jsc370-final
+    - icon: fab fa-linkedin
+      href: https://linkedin.com/in/christoffertan
+
+output:
+  html_document:
+    theme: flatly
+    toc: true
+    toc_float: true
+    includes:
+      after_body: footer.html
+    css: style.css
+
