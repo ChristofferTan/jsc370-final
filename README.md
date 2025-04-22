@@ -1,6 +1,6 @@
 # 🚲 Toronto Bike Share Prediction
 
-This project explores how weather conditions influence hourly bike share usage in Toronto. Using a combination of public datasets from [Toronto Open Data Portal](https://open.toronto.ca/dataset/bike-share-toronto-ridership-data/) and the [OpenWeather API](https://openweathermap.org/), we build and compare several predictive models to forecast bike trip volume and identify the most influential weather features.
+This project explores how weather conditions influence hourly bike share usage in Toronto. Using a combination of public datasets from [Toronto Open Data Portal](https://open.toronto.ca/dataset/bike-share-toronto-ridership-data/) and the [OpenWeather API](https://openweathermap.org/), I build and compare several predictive models to forecast bike trip volume and identify the most influential weather features.
 
 The project was completed as part of the **JSC370: Introduction to Data Science** course at the University of Toronto (Winter 2025).
 
