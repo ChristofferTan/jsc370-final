@@ -1,0 +1,57 @@
+---
+title: "Background and Methodology"
+output: 
+  html_document:
+    toc: true
+    toc_float: true
+    theme: flatly
+    css: style.css
+---
+
+## Introduction
+Bikeshare programs have become a core part of urban transportation, particularly in cities like Toronto, where cycling provides a convenient and environmentally friendly commuting alternative. However, as with many outdoor activities, bike ridership is highly sensitive to weather conditions. Factors like rain, strong winds, and extreme temperatures significantly influence whether people decide to ride. This project aims to investigate how various weather conditions affect bikeshare usage in Toronto by building predictive models that forecast hourly trip volumes based on temperature, wind speed, humidity, and cloudiness.
+
+To conduct this analysis, I gathered anonymized trip data from [Bike Share Toronto Ridership](https://open.toronto.ca/dataset/bike-share-toronto-ridership-data/) and matched it with hourly weather data from the [OpenWeather API](https://openweathermap.org/). The bikeshare data covers February 1 to September 30, 2024, but due to API limitations, the weather data is only available from April 18, 2024 to April 16, 2025. To ensure consistency, the study concentrates on the intersecting timeframe from April 18 to September 30, 2024, which aligns with the busiest cycling season and captures a wide range of weather variability affecting ridership.
+
+This project explores several modeling techniques, including Linear Regression, Generalized Additive Models (GAM), Random Forest, and XGBoost, to compare their predictive accuracy. In addition to forecasting usage patterns, the analysis aims to identify the most influential weather factors and determine how their impacts differ throughout the day. The insights gained can help improve planning, operations, and future decision-making related to Toronto’s bikeshare infrastructure.
+
+## Methods
+### Data Acquisition and Cleaning
+
+This study combines two main datasets: hourly weather observations retrieved from the [OpenWeather API](https://openweathermap.org/) and anonymized bike trip records from the [Bike Share Toronto open data portal](https://open.toronto.ca/dataset/bike-share-toronto-ridership-data/). A full description of the original features from each dataset can be found in the [Appendix A](appendix.html).
+
+The weather dataset includes hourly measurements of temperature, humidity, wind speed, cloud coverage, precipitation, and a categorical label describing general weather conditions. These hourly readings are initially reported in Coordinated Universal Time (UTC), so they were converted to Toronto local time (Eastern Time, UTC−4) to align with the bike trip data.
+
+The bikeshare dataset provides detailed records for each individual trip, including timestamps, station identifiers, and trip durations. To match the hourly resolution of the weather data, I aggregated the trip data by counting the number of trips initiated within each local hour. This resulted in an hourly trip count, effectively summarizing ridership demand. The two datasets were then merged into a unified dataset indexed by date and hour.
+
+```{r, message=FALSE, echo=FALSE, warning=FALSE, style="display: flex; justify-content: center;"}
+library(knitr)
+library(kableExtra)
+
+feature_table <- data.frame(
+  Feature = c("date", "hour", "temp", "humidity", "wind_speed", "cloudiness", "weather_main", "total_trips"),
+  Description = c(
+    "Local date in Toronto time",
+    "Hour of day (0 to 23) in local time",
+    "Temperature in Celsius",
+    "Relative humidity (percentage)",
+    "Wind speed in meters per second (m/s)",
+    "Cloud cover as a percentage",
+    "General weather label (e.g., Clear, Rain, Clouds)",
+    "Number of bike trips started during the given hour"
+  )
+)
+
+kable(feature_table, "html", caption = "<span style='color:#222222; font-size:16px; font-weight:600;'>Summary of Features Used in the Final Dataset</span>") |>
+  kable_styling(
+    bootstrap_options = c("striped", "hover", "condensed", "responsive"),
+    full_width = FALSE,
+    position = "center"
+  )
+```
+
+### Modeling and Evaluation
+
+All models were trained using 80% of the dataset, while the remaining 20% was used for testing. To consistently evaluate performance, three metrics were used: **R²** (variance explained), **RMSE** (Root Mean Squared Error), and **MAE** (Mean Absolute Error).
+
+The full results and comparisons can be found on the [ML page](ml.html).
