@@ -10,8 +10,7 @@ The project was completed as part of the **JSC370: Introduction to Data Science*
 📄 **Download Report**  
 👉 [Full PDF Report](docs/report.pdf)
 
-🎬 **Walkthrough Video**
-
+🎬 **Walkthrough Video**  
 👉 [Video](https://utoronto-my.sharepoint.com/:v:/g/personal/christoffer_tan_mail_utoronto_ca/EfCtQox2bz9FqhsjDTdDjqkBGFrFcEL2v4vgwq7oELDKEA?e=PkftRt)
 
 ---
